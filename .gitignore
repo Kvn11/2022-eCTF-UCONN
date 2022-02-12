@@ -4,6 +4,8 @@
 
 **/gcc
 
+CreateDeployment.sh
+
 socks
 *.sock
 
