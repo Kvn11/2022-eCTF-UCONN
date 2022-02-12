@@ -13,6 +13,8 @@ import logging
 from pathlib import Path
 import socket
 from sys import stderr
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 
 LOG_FORMAT = "%(asctime)s:%(name)-12s%(levelname)-8s %(message)s"
 log = logging.getLogger(Path(__file__).name)
@@ -61,3 +63,12 @@ def send_packets(sock: socket.socket, data: bytes):
 
         if resp != RESP_OK:
             exit(f"ERROR: Bootloader responded with {repr(resp)}")
+            
+def read_bytes_from_file(fileName: str):
+    in_file = open(fileName, "rb")
+    data = in_file.read(32)
+    in_file.close()
+    return data
+
+
+    
