@@ -1,3 +1,6 @@
 [submodule "bootloader/lib/tiny-AES-c"]
 	path = bootloader/lib/tiny-AES-c
 	url = https://github.com/kokke/tiny-AES-c.git
+[submodule "bootloader/lib/sha-2"]
+	path = bootloader/lib/sha-2
+	url = https://github.com/amosnier/sha-2.git
