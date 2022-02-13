@@ -18,7 +18,7 @@ import struct
 import "util.py"
 from pathlib import Path
 
-from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT
+from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT, import_RSA_key_from_file, generate_signature
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)

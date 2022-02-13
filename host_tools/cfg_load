@@ -27,6 +27,7 @@ def load_configuration(socket_number: int, config_file: Path):
     print_banner("SAFFIRe Configuration Tool")
 
     log.info("Reading configuration file...")
+    # First 256 bytes are the signature
     configuration = config_file.read_bytes()
     size = len(configuration)
 
