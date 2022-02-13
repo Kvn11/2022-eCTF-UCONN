@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <stdio.h>
 #include "driverlib/interrupt.h"
 
 #include "flash.h"
@@ -196,6 +197,7 @@ void handle_update(void)
     
     // Receive signature
     uart_read(HOST_UART, signature, 256);
+    printf("Signature is: %02x:%02x:%02x:%02x", signature[0], signature[1], signature[2], signature[3]);
 
     // Receive version
     version = ((uint32_t)uart_readb(HOST_UART)) << 8;
