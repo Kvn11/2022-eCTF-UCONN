@@ -29,11 +29,6 @@ def protect_configuration(raw_cfg: Path, protected_cfg: Path):
 
     log.info("Packaging the configuration...")
 
-    data = {
-        "raw_cfg": file_data,
-
-    }
-
     # generate signature:
     private_key = import_RSA_key_from_file
     signature = generate_signature(file_data, private_key)
