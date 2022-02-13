@@ -50,7 +50,7 @@ def protect_firmware(
         "version_num": version,
         "release_msg": release_message,
         "firmware": firmware_data.hex(),
-        "signature": signature
+        "signature": signature.hex()
     }
 
     # Write to the meta-data file:
