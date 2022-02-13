@@ -18,7 +18,7 @@ RUN apt-get update && apt-get upgrade -y && \
     binutils-arm-none-eabi gcc-arm-none-eabi make
 
 # Install the python libraries we will need
-RUN python3 -m pip install pycryptodome hashlib
+RUN python3 -m pip install pycryptodome
 
 # Create bootloader binary folder
 RUN mkdir /bootloader
