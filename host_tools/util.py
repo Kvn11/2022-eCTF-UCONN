@@ -13,8 +13,11 @@ import logging
 from pathlib import Path
 import socket
 from sys import stderr
+from Crypto.PublicKey.RSA import RsaKey
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
 
 LOG_FORMAT = "%(asctime)s:%(name)-12s%(levelname)-8s %(message)s"
 log = logging.getLogger(Path(__file__).name)
@@ -70,5 +73,40 @@ def read_bytes_from_file(fileName: str):
     in_file.close()
     return data
 
+def import_RSA_key_from_file(fileName: str):
+    f = open(fileName, 'r')
+    key = RSA.import_key(f.read())
+    return key
 
-    
+def rsa_encrypt(data: bytes, key: RsaKey):
+    cipher = PKCS1_OAEP.new(key)
+    cipher_text = cipher.encrypt(data)
+    # return is bytes type
+    return ciphertext
+
+"""
+** Only used for testing, leave it commented otherwise.
+
+def get_public_key(key: RsaKey):
+    return key.publickey()
+"""
+
+def generate_signature(data: bytes, private_key: RsaKey):
+    hashed_object = SHA256.new(data)
+    verifier_object = pkcs1_15.new(private_key)
+    signature = verifier_object.sign(hashed_object)
+    return signature
+
+"""
+
+** Only used for testing, leave it commented otherwise.
+
+def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
+    verifier_object = pkcs1_15.new(public_key)
+    hashed_object = SHA256.new(data)
+    try:
+        verifier_object.verify(hashed_object, signature)
+        return True
+    except(ValueError, TypeError):
+        return False
+"""
