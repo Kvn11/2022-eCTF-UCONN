@@ -103,12 +103,18 @@ void handle_readback(void)
     uint8_t region;
     uint8_t *address;
     uint32_t size = 0;
-    
+    uint8_t signature[256];
+    uint8_t token[32];
+
     // Acknowledge the host
     uart_writeb(HOST_UART, 'R');
     
+    // Receive signature + token
+    uart_read(HOST_UART, signature, 256);
+    uart_read(HOST_UART, token, 32);
+
     // TODO:
-    // Receive a randomly generated token signed by the host computer
+    // Verify token and signature:
 
     // Receive region identifier
     region = (uint32_t)uart_readb(HOST_UART);
@@ -189,9 +195,7 @@ void handle_update(void)
     uart_writeb(HOST_UART, 'U');
     
     // Receive signature
-    for (int i = 0; i < 256; i++) {
-        signature[i] = ((uint8_t)uart_readb(HOST_UART));
-    }
+    uart_read(HOST_UART, signature, 256);
 
     // Receive version
     version = ((uint32_t)uart_readb(HOST_UART)) << 8;
@@ -281,9 +285,7 @@ void handle_configure(void)
     size |= ((uint32_t)uart_readb(HOST_UART));
     
     // Receive signature
-    for (int i = 0; i < 256; i++) {
-        signature[i] = (uint8_t)uart_readb(HOST_UART);
-    }
+    uart_read(HOST_UART, signature, 256);
 
     // TODO: Make sure signature is valid before we begin loading it:
 
