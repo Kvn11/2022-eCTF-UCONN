@@ -14,7 +14,7 @@ FROM ubuntu:focal
 # Add environment customizations here
 # NOTE: do this first so Docker can used cached containers to skip reinstalling everything
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y python3 \
+    apt-get install -y python3 python3-pip \
     binutils-arm-none-eabi gcc-arm-none-eabi make
 
 # Install the python libraries we will need
