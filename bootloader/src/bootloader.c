@@ -180,9 +180,15 @@ void handle_update(void)
     uint32_t size = 0;
     uint32_t rel_msg_size = 0;
     uint8_t rel_msg[1025]; // 1024 + terminator
+    uint8_t signature[256];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'U');
+    
+    // Receive signature
+    for (int i = 0; i < 256; i++) {
+        signature[i] = ((uint8_t)uart_readb(HOST_UART));
+    }
 
     // Receive version
     version = ((uint32_t)uart_readb(HOST_UART)) << 8;
