@@ -51,7 +51,8 @@ def update_firmware(socket_number: int, firmware_file: Path):
             pass
 
         # Send the version, size, and release message
-        log.info("Sending version, size, and release message...")
+        log.info("Sending signature, version, size, and release message...")
+        log.info(f"Signature is: {signature[0:4]:02x}")
         payload = (
             signature +
             struct.pack(">HI", version_num, firmware_size)
