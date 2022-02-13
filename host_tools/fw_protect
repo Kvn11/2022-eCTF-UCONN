@@ -14,6 +14,8 @@
 import argparse
 import json
 import logging
+import struct
+import "util.py"
 from pathlib import Path
 
 from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT
@@ -36,18 +38,25 @@ def protect_firmware(
     # Construct the metadata
     firmware_size = len(firmware_data)
 
+    # There is no versioning data on the actual firmware size itself so we should sign the meta data instead.
+    # Generate a signature:
+    payload = struct.pack(">HI", version, firmware_size) + release_message.encode() + b"\x00"
+    private_key = import_RSA_key_from_file("/secrets/private-key.pem")
+    signature = generate_signature(payload, private_key)
+
     # Create firmware storage structure
     data = {
         "firmware_size": firmware_size,
         "version_num": version,
         "release_msg": release_message,
         "firmware": firmware_data.hex(),
+        "signature": signature
     }
 
-    # Write to the output file
+    # Write to the meta-data file:
     with protected_firmware.open("w", encoding="utf8") as fd:
         json.dump(data, fd)
-
+    
     log.info("Firmware protected\n")
 
 
