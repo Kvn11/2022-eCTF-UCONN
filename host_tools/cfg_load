@@ -48,13 +48,14 @@ def load_configuration(socket_number: int, config_file: Path):
         log.info("Sending the size...")
         payload = struct.pack(">I", size)
         sock.send(payload)
-        log.info("Recieving response...")
+        log.info("Waiting for response...")
         response = sock.recv(1)
+        log.info("Response received")
         if response != RESP_OK:
             exit(f"ERROR: Bootloader responded with {repr(response)}")
 
         # Send packets
-        log.info("Sending packets...")
+        log.info("Sending packets")
         send_packets(sock, configuration)
 
         log.info("Firmware configured\n")
