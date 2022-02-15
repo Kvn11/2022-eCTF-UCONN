@@ -34,6 +34,7 @@ def update_firmware(socket_number: int, firmware_file: Path):
         release_msg: str = data["release_msg"]
         firmware = bytes.fromhex(data["firmware"])
         firmware_size = len(firmware)
+        signature = bytes.fromhex(data["signature"])
 
     # Connect to the bootloader
     log.info("Connecting socket...")
@@ -50,12 +51,16 @@ def update_firmware(socket_number: int, firmware_file: Path):
             pass
 
         # Send the version, size, and release message
-        log.info("Sending version, size, and release message...")
+        log.info("Sending signature, version, size, and release message...")
+        log.info(f"Signature is: {signature[0]:02x}:{signature[1]:02x}:{signature[2]:02x}:{signature[3]:02x}")
         payload = (
+            signature +
             struct.pack(">HI", version_num, firmware_size)
             + release_msg.encode()
             + b"\x00"
         )
+        # We will generate a signature based off this payload.
+
         sock.send(payload)
         response = sock.recv(1)
         if response != RESP_OK:

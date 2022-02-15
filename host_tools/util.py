@@ -13,12 +13,18 @@ import logging
 from pathlib import Path
 import socket
 from sys import stderr
+from Crypto.PublicKey.RSA import RsaKey
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
 
 LOG_FORMAT = "%(asctime)s:%(name)-12s%(levelname)-8s %(message)s"
 log = logging.getLogger(Path(__file__).name)
 
 CONFIGURATION_ROOT = Path("/configuration")
 FIRMWARE_ROOT = Path("/firmware")
+PRIVATE_KEY = Path("/secrets/private-key.pem")
 RELEASE_MESSAGES_ROOT = Path("/messages")
 
 RESP_OK = b"\x00"
@@ -61,3 +67,47 @@ def send_packets(sock: socket.socket, data: bytes):
 
         if resp != RESP_OK:
             exit(f"ERROR: Bootloader responded with {repr(resp)}")
+            
+def read_bytes_from_file(fileName: str):
+    in_file = open(fileName, "rb")
+    data = in_file.read(32)
+    in_file.close()
+    return data
+
+def import_RSA_key_from_file(fileName: str):
+    key_path = Path(fileName)
+    key = RSA.import_key(key_path.read_bytes())
+    return key
+
+def rsa_encrypt(data: bytes, key: RsaKey):
+    cipher = PKCS1_OAEP.new(key)
+    cipher_text = cipher.encrypt(data)
+    # return is bytes type
+    return ciphertext
+
+"""
+** Only used for testing, leave it commented otherwise.
+
+def get_public_key(key: RsaKey):
+    return key.publickey()
+"""
+
+def generate_signature(data: bytes, private_key: RsaKey):
+    hashed_object = SHA256.new(data)
+    verifier_object = pkcs1_15.new(private_key)
+    signature = verifier_object.sign(hashed_object)
+    return signature
+
+"""
+
+** Only used for testing, leave it commented otherwise.
+
+def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
+    verifier_object = pkcs1_15.new(public_key)
+    hashed_object = SHA256.new(data)
+    try:
+        verifier_object.verify(hashed_object, signature)
+        return True
+    except(ValueError, TypeError):
+        return False
+"""

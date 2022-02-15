@@ -14,9 +14,10 @@
 import argparse
 import logging
 import socket
+import os
 from pathlib import Path
 
-from util import print_banner, LOG_FORMAT
+from util import print_banner, LOG_FORMAT, PRIVATE_KEY, generate_signature, import_RSA_key_from_file
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -39,6 +40,16 @@ def readback(socket_number, region, num_bytes):
         log.info("Waiting for bootloader to enter readback mode...")
         while sock.recv(1) != b"R":
             pass
+        
+        # generate random token:
+        token = os.urandom(32)
+        private_key = import_RSA_key_from_file(PRIVATE_KEY)
+        signature = generate_signature(token, private_key)
+
+        # Send the signed token, then send the regular token
+        log.info("Sending token and signature...")
+        sock.send(signature)
+        sock.send(token)
 
         # Send the region identifier
         log.info("Sending the region identifier to read back...")
