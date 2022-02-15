@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <stdio.h>
 #include "driverlib/interrupt.h"
 
 #include "flash.h"
@@ -197,7 +196,6 @@ void handle_update(void)
     
     // Receive signature
     uart_read(HOST_UART, signature, 256);
-    printf("Signature is: %02x:%02x:%02x:%02x", signature[0], signature[1], signature[2], signature[3]);
 
     // Receive version
     version = ((uint32_t)uart_readb(HOST_UART)) << 8;
@@ -286,9 +284,6 @@ void handle_configure(void)
     size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
     size |= ((uint32_t)uart_readb(HOST_UART));
     
-    // Receive signature
-    uart_read(HOST_UART, signature, 256);
-
     // TODO: Make sure signature is valid before we begin loading it:
 
     flash_erase_page(CONFIGURATION_METADATA_PTR);
@@ -297,6 +292,7 @@ void handle_configure(void)
     uart_writeb(HOST_UART, FRAME_OK);
     
     // Retrieve configuration
+    uart_read(HOST_UART, signature, 256);
     load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
 }
 
