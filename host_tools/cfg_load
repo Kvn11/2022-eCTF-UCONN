@@ -29,7 +29,7 @@ def load_configuration(socket_number: int, config_file: Path):
     log.info("Reading configuration file...")
     # First 256 bytes are the signature
     configuration = config_file.read_bytes()
-    size = len(configuration)
+    size = len(configuration) - 256
 
     # Connect to the bootloader
     log.info("Connecting socket...")
@@ -48,11 +48,13 @@ def load_configuration(socket_number: int, config_file: Path):
         log.info("Sending the size...")
         payload = struct.pack(">I", size)
         sock.send(payload)
+        log.info("Recieving response...")
         response = sock.recv(1)
         if response != RESP_OK:
             exit(f"ERROR: Bootloader responded with {repr(response)}")
 
         # Send packets
+        log.info("Sending packets...")
         send_packets(sock, configuration)
 
         log.info("Firmware configured\n")
