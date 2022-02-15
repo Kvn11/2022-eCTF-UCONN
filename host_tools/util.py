@@ -24,6 +24,7 @@ log = logging.getLogger(Path(__file__).name)
 
 CONFIGURATION_ROOT = Path("/configuration")
 FIRMWARE_ROOT = Path("/firmware")
+PRIVATE_KEY = Path("/secrets/private-key.pem")
 RELEASE_MESSAGES_ROOT = Path("/messages")
 
 RESP_OK = b"\x00"
@@ -74,8 +75,8 @@ def read_bytes_from_file(fileName: str):
     return data
 
 def import_RSA_key_from_file(fileName: str):
-    f = open(fileName, 'r')
-    key = RSA.import_key(f.read())
+    key_path = Path(fileName)
+    key = RSA.import_key(key_path.read_bytes())
     return key
 
 def rsa_encrypt(data: bytes, key: RsaKey):
