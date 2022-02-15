@@ -15,10 +15,9 @@ import argparse
 import json
 import logging
 import struct
-import "util.py"
 from pathlib import Path
 
-from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT, import_RSA_key_from_file, generate_signature
+from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT, PRIVATE_KEY, import_RSA_key_from_file, generate_signature
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -41,7 +40,7 @@ def protect_firmware(
     # There is no versioning data on the actual firmware size itself so we should sign the meta data instead.
     # Generate a signature:
     payload = struct.pack(">HI", version, firmware_size) + release_message.encode() + b"\x00"
-    private_key = import_RSA_key_from_file("/secrets/private-key.pem")
+    private_key = import_RSA_key_from_file(PRIVATE_KEY)
     signature = generate_signature(payload, private_key)
 
     # Create firmware storage structure
