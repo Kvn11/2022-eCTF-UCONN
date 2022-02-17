@@ -15,8 +15,9 @@ import argparse
 import logging
 from pathlib import Path
 import socket
+import os
 
-from util import print_banner, RELEASE_MESSAGES_ROOT, LOG_FORMAT
+from util import print_banner, RELEASE_MESSAGES_ROOT, LOG_FORMAT, PRIVATE_KEY, import_RSA_key_from_file, generate_signature
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -37,6 +38,20 @@ def boot(socket_number: int, release_message_file: Path):
         log.info("Waiting for bootloader to enter boot mode...")
         while sock.recv(1) != b"B":
             pass
+
+        #generate token
+        token = os.random(32)
+        private_key = import_RSA_key_from_file(PRIVATE_KEY)
+    
+        #Sign token
+        signature = generate_signature(token, private_key)
+
+        #Send signed token
+        log.info("Sending token and signature...")
+        sock.send(signature)
+
+        #Send unsigned token
+        sock.send(token)
 
         # Wait for bootloader to move firmware to ram
         log.info("Waiting for bootloader to copy firmware to RAM...")
