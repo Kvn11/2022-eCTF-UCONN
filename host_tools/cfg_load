@@ -16,8 +16,9 @@ import logging
 from pathlib import Path
 import socket
 import struct
+import os
 
-from util import print_banner, send_packets, RESP_OK, CONFIGURATION_ROOT, LOG_FORMAT
+from util import print_banner, send_packets, RESP_OK, CONFIGURATION_ROOT, LOG_FORMAT, import_RSA_key_from_file, generate_signature, PRIVATE_KEY
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -43,6 +44,20 @@ def load_configuration(socket_number: int, config_file: Path):
         # Receive bootloader acknowledgement
         while sock.recv(1) != b"C":
             pass
+
+        #generate token
+        token = os.random(32)
+        private_key = import_RSA_key_from_file(PRIVATE_KEY)
+    
+        #Sign token
+        signature = generate_signature(token, private_key)
+
+        #Send signed token
+        log.info("Sending token and signature...")
+        sock.send(signature)
+
+        #Send unsigned token
+        sock.send(token)
 
         # Send the size
         log.info("Sending the size...")
