@@ -54,6 +54,7 @@
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 
 #define DEF_CHECKSUM ((uint8_t*)0)//TODO: Add checksum value to flash
+#define SIG_SIZE 2048
 
 
 // Firmware update constants
@@ -105,14 +106,14 @@ void handle_readback(void)
     uint8_t region;
     uint8_t *address;
     uint32_t size = 0;
-    uint8_t signature[256];
+    uint8_t signature[SIG_SIZE];
     uint8_t token[32];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'R');
     
     // Receive signature + token
-    uart_read(HOST_UART, signature, 2048);
+    uart_read(HOST_UART, signature, SIG_SIZE);
     uart_read(HOST_UART, token, 32);
 
     // TODO:
@@ -191,13 +192,13 @@ void handle_update(void)
     uint32_t size = 0;
     uint32_t rel_msg_size = 0;
     uint8_t rel_msg[1025]; // 1024 + terminator
-    uint8_t signature[2048];
+    uint8_t signature[SIG_SIZE];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'U');
     
     // Receive signature
-    uart_read(HOST_UART, signature, 2048);
+    uart_read(HOST_UART, signature, SIG_SIZE);
 
     // Receive version
     version = ((uint32_t)uart_readb(HOST_UART)) << 8;
@@ -275,7 +276,7 @@ void handle_update(void)
 void handle_configure(void)
 {
     uint32_t size = 0;
-    uint8_t signature[2048];
+    uint8_t signature[SIG_SIZE];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'C');
@@ -294,7 +295,7 @@ void handle_configure(void)
     uart_writeb(HOST_UART, FRAME_OK);
     
     // Retrieve configuration
-    uart_read(HOST_UART, signature, 2048);
+    uart_read(HOST_UART, signature, SIG_SIZE);
     load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
 
     struct bn sig_ciphertext;
