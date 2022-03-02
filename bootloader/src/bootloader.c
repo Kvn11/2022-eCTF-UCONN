@@ -54,7 +54,8 @@
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 
 #define DEF_CHECKSUM ((uint8_t*)0)//TODO: Add checksum value to flash
-#define SIG_SIZE 2048
+// UART_read() takes bytes, so this is the same as 2048 bits
+#define SIG_SIZE 256
 
 
 // Firmware update constants
