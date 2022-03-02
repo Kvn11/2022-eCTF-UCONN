@@ -66,6 +66,9 @@ ${COMPILER}/bootloader.axf: ${COMPILER}/aes.o
 endif
 ################ end crypto example ################
 
+${COMPILER}/secrets.o:
+	@ld -r -b binary -o ${@} /secrets/public-key.bin
+
 
 
 
@@ -106,6 +109,7 @@ ${COMPILER}/bootloader.axf: arg_check
 ${COMPILER}/bootloader.axf: ${COMPILER}/flash.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/uart.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/bootloader.o
+${COMPILER}/bootloader.axf: ${COMPILER}/secrets.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/startup_${COMPILER}.o
 ${COMPILER}/bootloader.axf: ${TIVA_ROOT}/driverlib/${COMPILER}/libdriver.a
 
