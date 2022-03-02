@@ -19,6 +19,8 @@
 #include "flash.h"
 #include "uart.h"
 
+#include "crypto.h"
+
 // this will run if EXAMPLE_AES is defined in the Makefile (see line 54)
 #ifdef EXAMPLE_AES
 #include "aes.h"
@@ -43,7 +45,7 @@
 #define FIRMWARE_RELEASE_MSG_PTR   ((uint32_t)(FIRMWARE_METADATA_PTR + 8))
 #define FIRMWARE_RELEASE_MSG_PTR2  ((uint32_t)(FIRMWARE_METADATA_PTR + FLASH_PAGE_SIZE))
 
-#define FIRMWARE_STORAGE_PTR       ((uint32_t)(FIRMWARE_METADATA_PTR + (FLASH_PAGE_SIZE*2)))
+#define FIRMWARE_STORAGE_PTR       ((uint32_t)(FIRMWARE_METADATA_PTR + (FLASH_PAGE_SIZE*4)))
 #define FIRMWARE_BOOT_PTR          ((uint32_t)0x20004000)
 
 #define CONFIGURATION_METADATA_PTR ((uint32_t)(FIRMWARE_STORAGE_PTR + (FLASH_PAGE_SIZE*16)))
@@ -51,7 +53,7 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 
-
+#define DEF_CHECKSUM ((uint8_t*)0)//TODO: Add checksum value to flash
 
 
 // Firmware update constants
@@ -103,9 +105,18 @@ void handle_readback(void)
     uint8_t region;
     uint8_t *address;
     uint32_t size = 0;
-    
+    uint8_t signature[256];
+    uint8_t token[32];
+
     // Acknowledge the host
     uart_writeb(HOST_UART, 'R');
+    
+    // Receive signature + token
+    uart_read(HOST_UART, signature, 2048);
+    uart_read(HOST_UART, token, 32);
+
+    // TODO:
+    // Verify token and signature:
 
     // Receive region identifier
     region = (uint32_t)uart_readb(HOST_UART);
@@ -180,9 +191,13 @@ void handle_update(void)
     uint32_t size = 0;
     uint32_t rel_msg_size = 0;
     uint8_t rel_msg[1025]; // 1024 + terminator
+    uint8_t signature[2048];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'U');
+    
+    // Receive signature
+    uart_read(HOST_UART, signature, 2048);
 
     // Receive version
     version = ((uint32_t)uart_readb(HOST_UART)) << 8;
@@ -260,6 +275,7 @@ void handle_update(void)
 void handle_configure(void)
 {
     uint32_t size = 0;
+    uint8_t signature[2048];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'C');
@@ -269,6 +285,8 @@ void handle_configure(void)
     size |= (((uint32_t)uart_readb(HOST_UART)) << 16);
     size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
     size |= ((uint32_t)uart_readb(HOST_UART));
+    
+    // TODO: Make sure signature is valid before we begin loading it:
 
     flash_erase_page(CONFIGURATION_METADATA_PTR);
     flash_write_word(size, CONFIGURATION_SIZE_PTR);
@@ -276,7 +294,31 @@ void handle_configure(void)
     uart_writeb(HOST_UART, FRAME_OK);
     
     // Retrieve configuration
+    uart_read(HOST_UART, signature, 2048);
     load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
+
+    struct bn sig_ciphertext;
+    struct bn modulus;
+    struct bn hash;
+
+    bignum_init(&sig_ciphertext);
+    bignum_init(&modulus);
+    bignum_init(&hash);
+
+    //TODO: Add modulus move
+
+    montgomery(&sig_ciphertext, &modulus, &hash);
+
+    int succeeded = 1;
+    for(int i = 0; i < 32; i++)
+    {
+        succeeded = succeeded && (hash.array[i] != DEF_CHECKSUM[i]);
+    }
+
+    if(succeeded)
+    {
+        while(1);
+    }
 }
 
 

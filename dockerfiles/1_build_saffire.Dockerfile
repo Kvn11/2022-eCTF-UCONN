@@ -14,11 +14,11 @@ FROM ubuntu:focal
 # Add environment customizations here
 # NOTE: do this first so Docker can used cached containers to skip reinstalling everything
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y python3 \
-    binutils-arm-none-eabi gcc-arm-none-eabi make
+    apt-get install -y python3 python3-pip \
+    binutils-arm-none-eabi gcc-arm-none-eabi make openssl
 
 # Install the python libraries we will need
-RUN python3 -m pip install pycryptodome hashlib
+RUN python3 -m pip install pycryptodome
 
 # Create bootloader binary folder
 RUN mkdir /bootloader
@@ -35,7 +35,7 @@ RUN sh /host_tools/generate_secrets
 
 # Create EEPROM contents
 # RUN echo "Bootloader Data" > /bootloader/eeprom.bin
-RUN cp /secrets/secrets.bin /bootloader/eeprom.bin
+RUN cat /secrets/public-key.pem > /bootloader/eeprom.bin
 
 # Compile bootloader
 WORKDIR /bl_build
