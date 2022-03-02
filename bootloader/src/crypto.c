@@ -267,7 +267,11 @@ void pkcs_decode(const unsigned char* msg, unsigned long msglen, int block_type,
     }
 
     *out = msg + (2 + ps_len + 1);
-    *is_valid = 1;
+
+	if(is_valid)
+	{
+		*is_valid = 1;
+	}
 }
 
 /*

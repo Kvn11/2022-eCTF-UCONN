@@ -53,7 +53,7 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 
-#define DEF_CHECKSUM ((uint8_t*)0)//TODO: Add checksum value to flash
+#define DEF_CHECKSUM ((uint8_t*)_binary___public_key_bin_start)//TODO: Add checksum value to flash
 // UART_read() takes bytes, so this is the same as 2048 bits
 #define SIG_SIZE 256
 
@@ -303,18 +303,24 @@ void handle_configure(void)
     struct bn modulus;
     struct bn hash;
 
-    bignum_init(&sig_ciphertext);
-    bignum_init(&modulus);
+    bignum_from_ptr(&sig_ciphertext, (uint32_t*)signature, SIG_SIZE / 4);
+    bignum_from_ptr(&modulus, (uint32_t*)DEF_CHECKSUM, SIG_SIZE / 4);
     bignum_init(&hash);
 
-    //TODO: Add modulus move
+    uint8_t hash_calculated[32];
+    struct sha256_context hash_ctx;
+    sha256_init(&hash_ctx);
+    sha256_hash(&hash_ctx, FIRMWARE_STORAGE_PTR, *((uint32_t*)FIRMWARE_SIZE_PTR));
+    sha256_done(&hash_ctx, hash_calculated);
 
+    uint8_t* hash_decoded;
     montgomery(&sig_ciphertext, &modulus, &hash);
+    pkcs_decode(hash.array, 64, 0, 2048, &hash_decoded, 0);
 
     int succeeded = 1;
     for(int i = 0; i < 32; i++)
     {
-        succeeded = succeeded && (hash.array[i] != DEF_CHECKSUM[i]);
+        succeeded = succeeded && (hash_decoded[i] != hash_calculated[i]);
     }
 
     if(succeeded)

@@ -85,6 +85,7 @@ void bignum_from_int(struct bn* n, DTYPE_TMP i);
 int  bignum_to_int(struct bn* n);
 void bignum_from_string(struct bn* n, char* str, int nbytes);
 void bignum_to_string(struct bn* n, char* str, int maxsize);
+void bignum_from_ptr(struct bn* n, DTYPE* buf, int nword);
 
 /* Basic arithmetic operations: */
 void bignum_add(struct bn* a, struct bn* b, struct bn* c); /* c = a + b */

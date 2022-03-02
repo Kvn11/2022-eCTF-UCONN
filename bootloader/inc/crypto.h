@@ -23,7 +23,7 @@ void sha256_done(struct sha256_context *ctx, uint8_t *hash);
 
 // PKCS1-v1.5
 
-void pkcs_decode(const unsigned char* msg, unsigned long msglen, int block_type, unsigned long modulus_bitlen, char* out, int *is_valid);
+void pkcs_decode(const unsigned char* msg, unsigned long msglen, int block_type, unsigned long modulus_bitlen, char** out, int *is_valid);
 
 // RSA
 
