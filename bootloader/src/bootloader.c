@@ -53,9 +53,9 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 
-#define DEF_CHECKSUM ((uint8_t*)_binary___public_key_bin_start)//TODO: Add checksum value to flash
-// UART_read() takes bytes, so this is the same as 2048 bits
-#define SIG_SIZE 256
+extern uint32_t _binary__public_key_bin_start;
+#define DEF_CHECKSUM &_binary__public_key_bin_start
+#define SIG_SIZE 256 // UART_read() takes bytes, so this is the same as 2048 bits
 
 
 // Firmware update constants
@@ -310,10 +310,10 @@ void handle_configure(void)
     uint8_t hash_calculated[32];
     struct sha256_context hash_ctx;
     sha256_init(&hash_ctx);
-    sha256_hash(&hash_ctx, FIRMWARE_STORAGE_PTR, *((uint32_t*)FIRMWARE_SIZE_PTR));
+    sha256_hash(&hash_ctx, (const void *)FIRMWARE_STORAGE_PTR, *((uint32_t*)FIRMWARE_SIZE_PTR));
     sha256_done(&hash_ctx, hash_calculated);
 
-    uint8_t* hash_decoded;
+    char* hash_decoded;
     montgomery(&sig_ciphertext, &modulus, &hash);
     pkcs_decode(hash.array, 64, 0, 2048, &hash_decoded, 0);
 
