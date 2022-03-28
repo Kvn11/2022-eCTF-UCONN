@@ -9,6 +9,8 @@
 # 2022 MITRE eCTF competition, and may not meet MITRE standards for quality.
 # Use this code at your own risk!
 
+import json
+form base64 import b64encode
 import logging
 from pathlib import Path
 import socket
@@ -18,6 +20,8 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
+from Crypto.Cipher import ChaCha20
+
 
 LOG_FORMAT = "%(asctime)s:%(name)-12s%(levelname)-8s %(message)s"
 log = logging.getLogger(Path(__file__).name)
@@ -111,3 +115,15 @@ def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
     except(ValueError, TypeError):
         return False
 """
+
+def encrypt_chacha(data: bytes, key: bytes):
+    cipher = ChaCha20.new(key=key)
+    ciphertext = cipher.encrypt(data)
+    
+    return (ciphertext, cipher.nonce)
+
+def decrypt_chacha(ciphertext: bytes, key: btyes, nonce: bytes):
+    cipher = ChaCha20.new(key=key, nonce=nonce)
+    plaintext = cipher.decrypt(ciphertext)
+
+    return plaintext

@@ -70,7 +70,7 @@ There may well be room for performance-optimizations and improvements.
 struct bn
 {
   // DTYPE array[BN_ARRAY_SIZE];
-  const unsigned char array[BN_ARRAY_SIZE];
+  unsigned char array[BN_ARRAY_SIZE];
 };
 
 

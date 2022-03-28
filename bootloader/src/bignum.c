@@ -153,9 +153,9 @@ void bignum_to_string(struct bn* n, char* str, int nbytes)
 void bignum_from_ptr(struct bn* n, DTYPE* buf, int nword)
 {
   bignum_init(n);
-  for(int i = 0; i < (nbytes >> 2); i++)
+  for(int i = 0; i < (nword >> 2); i++)
   {
-    n.array[i] = buf[i];
+    n->array[i] = buf[i];
   }
 }
 
