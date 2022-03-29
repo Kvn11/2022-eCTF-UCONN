@@ -45,6 +45,11 @@ def load_configuration(socket_number: int, config_file: Path):
         while sock.recv(1) != b"C":
             pass
 
+        # Send the size
+        log.info("Sending the size...")
+        payload = struct.pack(">I", size)
+        sock.send(payload)
+
         #generate token
         token = os.random(32)
         private_key = import_RSA_key_from_file(PRIVATE_KEY)
@@ -58,11 +63,7 @@ def load_configuration(socket_number: int, config_file: Path):
 
         #Send unsigned token
         sock.send(token)
-
-        # Send the size
-        log.info("Sending the size...")
-        payload = struct.pack(">I", size)
-        sock.send(payload)
+        
         log.info("Waiting for response...")
         response = sock.recv(1)
         log.info("Response received")

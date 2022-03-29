@@ -66,12 +66,6 @@ ${COMPILER}/bootloader.axf: ${COMPILER}/aes.o
 endif
 ################ end crypto example ################
 
-${COMPILER}/secrets.o:
-	@ld -r -b binary -o ${@} /secrets/public-key.bin
-
-
-
-
 # build libraries
 ${TIVA_ROOT}/driverlib/${COMPILER}/libdriver.a:
 	${MAKE} -C ${TIVA_ROOT}/driverlib
@@ -106,13 +100,13 @@ arg_check:
 
 # Check arguments
 ${COMPILER}/bootloader.axf: arg_check
+${COMPILER}/bootloader.axf: ${COMPILER}/bignum.o
+${COMPILER}/bootloader.axf: ${COMPILER}/crypto.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/flash.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/uart.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/bootloader.o
-${COMPILER}/bootloader.axf: ${COMPILER}/secrets.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/startup_${COMPILER}.o
 ${COMPILER}/bootloader.axf: ${TIVA_ROOT}/driverlib/${COMPILER}/libdriver.a
-
 
 SCATTERgcc_bootloader=${TIVA_ROOT}/bootloader.ld
 ENTRY_bootloader=Bootloader_Startup

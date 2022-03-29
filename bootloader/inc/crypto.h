@@ -17,6 +17,11 @@ struct sha256_context{
     uint32_t len;
 };
 
+typedef union {
+    uint32_t u[16];
+    uint8_t c[64];
+} chacha_buf;
+
 void sha256_init(struct sha256_context *ctx);
 void sha256_hash(struct sha256_context *ctx, const void* data, size_t len);
 void sha256_done(struct sha256_context *ctx, uint8_t *hash);
@@ -29,5 +34,13 @@ void pkcs_decode(const unsigned char* msg, unsigned long msglen, int block_type,
 
 void montgomery(const struct bn* A, const struct bn* M, struct bn* C); // Returns: (A^65537 MOD M)
 #define RSA_DECODE(cryptotext, modulus, result) montgomery(cryptotext, modulus, result)
+
+// ChaCha20
+
+void ChaCha20(uint8_t *out, const uint8_t *inp,
+                size_t len, const uint32_t key[8],
+                const uint32_t counter[4]);
+
+void chacha20_core(chacha_buf *output, const uint32_t input[16]);
 
 #endif

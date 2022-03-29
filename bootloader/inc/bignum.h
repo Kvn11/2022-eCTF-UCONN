@@ -69,7 +69,8 @@ There may well be room for performance-optimizations and improvements.
 /* Data-holding structure: array of DTYPEs */
 struct bn
 {
-  DTYPE array[BN_ARRAY_SIZE];
+  // DTYPE array[BN_ARRAY_SIZE];
+  unsigned char array[BN_ARRAY_SIZE];
 };
 
 

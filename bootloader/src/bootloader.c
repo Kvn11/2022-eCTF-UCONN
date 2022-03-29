@@ -15,6 +15,7 @@
 #include <stdbool.h>
 
 #include "driverlib/interrupt.h"
+#include "driverlib/eeprom.h"
 
 #include "flash.h"
 #include "uart.h"
@@ -52,10 +53,17 @@
 #define CONFIGURATION_SIZE_PTR     ((uint32_t)(CONFIGURATION_METADATA_PTR + 0))
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
+#define CONFIGURATION_SIGNATURE_PTR (CONFIGURATION_STORAGE_PTR)
+#define CONFIGURATION_TOKEN_PTR (CONFIGURATION_SIGNATURE_PTR + 256)
 
-#define DEF_CHECKSUM ((uint8_t*)_binary___public_key_bin_start)//TODO: Add checksum value to flash
-// UART_read() takes bytes, so this is the same as 2048 bits
-#define SIG_SIZE 256
+#define EEPROM_MODULUS_SIZE (64) // Size is in 32 bit words
+#define EEPROM_CHACHA_SIZE  (8)
+#define EEPROM_MODULUS_PTR  ((uint32_t)0)
+#define EEPROM_CHACHA_PTR   (EEPROM_MODULUS_PTR + EEPROM_MODULUS_SIZE)
+
+#define DEF_CHECKSUM CONFIGURATION_STORAGE_PTR
+#define SIG_SIZE 256 // UART_read() takes bytes, so this is the same as 2048 bits
+#define TOKEN_SIZE 32 // 32 random token bytes
 
 
 // Firmware update constants
@@ -277,7 +285,7 @@ void handle_update(void)
 void handle_configure(void)
 {
     uint32_t size = 0;
-    uint8_t signature[SIG_SIZE];
+    uint32_t rsa_mod[32];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'C');
@@ -287,43 +295,45 @@ void handle_configure(void)
     size |= (((uint32_t)uart_readb(HOST_UART)) << 16);
     size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
     size |= ((uint32_t)uart_readb(HOST_UART));
-    
+
+    if(size != (SIG_SIZE + TOKEN_SIZE))
+    {
+        while(1);
+    }
+
     // TODO: Make sure signature is valid before we begin loading it:
 
     flash_erase_page(CONFIGURATION_METADATA_PTR);
     flash_write_word(size, CONFIGURATION_SIZE_PTR);
 
-    uart_writeb(HOST_UART, FRAME_OK);
+    uart_writeb(HOST_UART, 'C');
     
     // Retrieve configuration
-    uart_read(HOST_UART, signature, SIG_SIZE);
-    load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
+    load_data(HOST_UART, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE);
+    load_data(HOST_UART, CONFIGURATION_TOKEN_PTR, TOKEN_SIZE);
+
 
     struct bn sig_ciphertext;
     struct bn modulus;
-    struct bn hash;
+    struct bn token;
 
-    bignum_from_ptr(&sig_ciphertext, (uint32_t*)signature, SIG_SIZE / 4);
-    bignum_from_ptr(&modulus, (uint32_t*)DEF_CHECKSUM, SIG_SIZE / 4);
-    bignum_init(&hash);
+    EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE)
 
-    uint8_t hash_calculated[32];
-    struct sha256_context hash_ctx;
-    sha256_init(&hash_ctx);
-    sha256_hash(&hash_ctx, FIRMWARE_STORAGE_PTR, *((uint32_t*)FIRMWARE_SIZE_PTR));
-    sha256_done(&hash_ctx, hash_calculated);
+    bignum_from_ptr(&sig_ciphertext, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE / 4);
+    bignum_from_ptr(&modulus, rsa_mod, 32);
+    bignum_init(&token);
 
-    uint8_t* hash_decoded;
-    montgomery(&sig_ciphertext, &modulus, &hash);
-    pkcs_decode(hash.array, 64, 0, 2048, &hash_decoded, 0);
+    char* token_decoded;
+    montgomery(&sig_ciphertext, &modulus, &token);
+    pkcs_decode(token.array, 64, 0, 2048, &token_decoded, 0);
 
-    int succeeded = 1;
+    int failed = 1;
     for(int i = 0; i < 32; i++)
     {
-        succeeded = succeeded && (hash_decoded[i] != hash_calculated[i]);
+        failed = failed && (hash_decoded[i] != CONFIGURATION_TOKEN_PTR[i]);
     }
 
-    if(succeeded)
+    if(failed)
     {
         while(1);
     }
@@ -340,29 +350,8 @@ int main(void) {
 
     uint8_t cmd = 0;
 
-#ifdef EXAMPLE_AES
-    // -------------------------------------------------------------------------
-    // example encryption using tiny-AES-c
-    // -------------------------------------------------------------------------
-    struct AES_ctx ctx;
-    uint8_t key[16] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 
-                        0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf };
-    uint8_t plaintext[16] = "0123456789abcdef";
-
-    // initialize context
-    AES_init_ctx(&ctx, key);
-
-    // encrypt buffer (encryption happens in place)
-    AES_ECB_encrypt(&ctx, plaintext);
-
-    // decrypt buffer (decryption happens in place)
-    AES_ECB_decrypt(&ctx, plaintext);
-    // -------------------------------------------------------------------------
-    // end example
-    // -------------------------------------------------------------------------
-#endif
-
     // Initialize IO components
+    EEPROMInit();
     uart_init();
 
     // Handle host commands
