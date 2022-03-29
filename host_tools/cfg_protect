@@ -26,7 +26,13 @@ def protect_configuration(raw_cfg: Path, protected_cfg: Path):
     # Read in the raw configuration binary
     log.info("Reading configuration data...")
     file_data = raw_cfg.read_bytes()
+    
+    # TODO:
+    # encrypt file data:
+    #-----
 
+
+    #-----
     log.info("Packaging the configuration...")
 
     # generate signature:

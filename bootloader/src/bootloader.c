@@ -54,7 +54,6 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 #define CONFIGURATION_SIGNATURE_PTR (CONFIGURATION_STORAGE_PTR)
-#define CONFIGURATION_TOKEN_PTR (CONFIGURATION_SIGNATURE_PTR + 256)
 
 #define EEPROM_MODULUS_SIZE (64) // Size is in 32 bit words
 #define EEPROM_CHACHA_SIZE  (8)
@@ -284,42 +283,28 @@ void handle_update(void)
  */
 void handle_configure(void)
 {
-    uint32_t size = 0;
     uint32_t rsa_mod[32];
+    uint8_t token_sig[SIG_SIZE];
+    uint8_t u8_token[TOKEN_SIZE];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'C');
 
-    // Receive size
-    size = (((uint32_t)uart_readb(HOST_UART)) << 24);
-    size |= (((uint32_t)uart_readb(HOST_UART)) << 16);
-    size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
-    size |= ((uint32_t)uart_readb(HOST_UART));
-
-    if(size != (SIG_SIZE + TOKEN_SIZE))
-    {
-        while(1);
-    }
-
     // TODO: Make sure signature is valid before we begin loading it:
-
-    flash_erase_page(CONFIGURATION_METADATA_PTR);
-    flash_write_word(size, CONFIGURATION_SIZE_PTR);
 
     uart_writeb(HOST_UART, 'C');
     
     // Retrieve configuration
-    load_data(HOST_UART, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE);
-    load_data(HOST_UART, CONFIGURATION_TOKEN_PTR, TOKEN_SIZE);
-
+    uart_read(HOST_UART, token_sig, SIG_SIZE);
+    uart_read(HOST_UART, u8_token, TOKEN_SIZE);
 
     struct bn sig_ciphertext;
     struct bn modulus;
     struct bn token;
 
-    EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE)
+    EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE);
 
-    bignum_from_ptr(&sig_ciphertext, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE / 4);
+    bignum_from_ptr(&sig_ciphertext, token_sig, SIG_SIZE / 4);
     bignum_from_ptr(&modulus, rsa_mod, 32);
     bignum_init(&token);
 
@@ -328,14 +313,36 @@ void handle_configure(void)
     pkcs_decode(token.array, 64, 0, 2048, &token_decoded, 0);
 
     int failed = 1;
-    for(int i = 0; i < 32; i++)
+    if(token_decoded)
     {
-        failed = failed && (hash_decoded[i] != CONFIGURATION_TOKEN_PTR[i]);
+        failed = 0;
+        for(int i = 0; i < 32 && !failed; i++)
+        {
+            failed = failed || (token_decoded[i] != u8_token[i]);
+        }
     }
 
-    if(failed)
+    uart_writeb(HOST_UART, failed);
+
+    if(!failed)
     {
-        while(1);
+        uint32_t size = 0;
+
+        // Receive size
+        size = (((uint32_t)uart_readb(HOST_UART)) << 24);
+        size |= (((uint32_t)uart_readb(HOST_UART)) << 16);
+        size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
+        size |= ((uint32_t)uart_readb(HOST_UART));
+
+        if(size != (SIG_SIZE))
+        {
+            while(1);
+        }
+
+        flash_erase_page(CONFIGURATION_METADATA_PTR);
+        flash_write_word(size, CONFIGURATION_SIZE_PTR);
+
+        load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
     }
 }
 

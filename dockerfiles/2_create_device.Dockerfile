@@ -1,6 +1,6 @@
 # 2022 eCTF
 # Device Packager Dockerfile
-# Andrew Mirghassemi
+# Jake Grycel
 #
 # (c) 2022 The MITRE Corporation
 #
@@ -16,6 +16,8 @@ ARG PARENT
 FROM ${SYSNAME}/host_tools as host_tools
 
 FROM ${PARENT}
+
+ARG EEPROM_SECRET
 
 RUN apk update && apk upgrade && apk add python3
 
@@ -33,4 +35,4 @@ RUN mkdir /flash
 RUN mkdir /eeprom
 
 # Create padded binaries for the system bootstrappers
-RUN python3 /platform/create_images.py
+RUN python3 /platform/create_images.py --eeprom-secret "$EEPROM_SECRET"
