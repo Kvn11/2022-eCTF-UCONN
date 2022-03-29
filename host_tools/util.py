@@ -18,6 +18,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
+from Crypto.Cipher import AES
 
 LOG_FORMAT = "%(asctime)s:%(name)-12s%(levelname)-8s %(message)s"
 log = logging.getLogger(Path(__file__).name)
@@ -111,3 +112,10 @@ def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
     except(ValueError, TypeError):
         return False
 """
+
+def encrypt_AES(data: bytes, key: bytes):
+    cipher = AES.new(key, AES.MODE_CBC)
+    nonce = cipher.nonce
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    return (ciphertext, nonce)
+    
