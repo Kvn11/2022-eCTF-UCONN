@@ -312,6 +312,19 @@ void montgomery(const struct bn* A, const struct bn* M, struct bn* C)
 	bignum_assign(C, &R0);
 }
 
+void rsa_decrypt(uint8_t* cipher_text, uint8_t* key, uint8_t** result)
+{
+	struct bn cipher;
+	struct bn modulus;
+	struct bn tmp_result;
+
+	bignum_from_ptr(&cipher, cipher_text, 256);
+	bignum_from_ptr(&modulus, key, 256);
+
+	montgomery(&cipher, &modulus, &tmp_result);
+	pkcs_decode(&cipher, 32, 0, 2048, result, 0);
+}
+
 /*
 *	ChaCha20
 */

@@ -298,19 +298,10 @@ void handle_configure(void)
     uart_read(HOST_UART, token_sig, SIG_SIZE);
     uart_read(HOST_UART, u8_token, TOKEN_SIZE);
 
-    struct bn sig_ciphertext;
-    struct bn modulus;
-    struct bn token;
-
     EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE);
 
-    bignum_from_ptr(&sig_ciphertext, token_sig, SIG_SIZE / 4);
-    bignum_from_ptr(&modulus, rsa_mod, 32);
-    bignum_init(&token);
-
-    char* token_decoded;
-    montgomery(&sig_ciphertext, &modulus, &token);
-    pkcs_decode(token.array, 64, 0, 2048, &token_decoded, 0);
+    uint8_t* token_decoded;
+    rsa_decrypt(token_sig, rsa_mod, &token_decoded);
 
     int failed = 1;
     if(token_decoded)

@@ -14,7 +14,11 @@
 import time
 import argparse
 import logging
+<<<<<<< HEAD
 import inspect
+=======
+from pathlib import Path
+>>>>>>> 50ca94fc3d3333833205d71bc5834e304fba4af1
 import subprocess
 import asyncio
 
@@ -247,6 +251,24 @@ def build_system(args):
     # not going to check the returncode of this
     return [p2, p3, p4]
 
+    # Build device copy with side-channel emulator
+    cmd = [
+        "docker",
+        "build",
+        "--progress",
+        "plain",
+        f"{args.root_path}",
+        "-f",
+        f"{args.root_path}/dockerfiles/2_create_device.Dockerfile",
+        "-t",
+        f"{args.sysname}/bootloader:sc",
+        "--build-arg",
+        f"SYSNAME={args.sysname}",
+        "--build-arg",
+        f"PARENT={parent_sc}",
+    ]
+    subprocess.run(cmd)
+
 
 def load_emulated_device(args):
     # Get Docker-managed volumes
@@ -436,6 +458,15 @@ def launch_bootloader_interactive(args):
     launch_emulator(args, interactive=True)
 
 
+def launch_bootloader_interactive(args):
+    if args.sock_root is None:
+        log.error(
+            "launch_bootloader_interactive: Missing '--sock-root' for emulated flow"
+        )
+        exit(1)
+    launch_emulator(args, interactive=True)
+
+
 def launch_bootloader_gdb(args):
     if args.sock_root is None:
         exit("launch_bootloader_gdb: Missing '--sock-root' for emulated flow")
@@ -444,7 +475,8 @@ def launch_bootloader_gdb(args):
 
 def launch_bootloader_sc(args):
     if args.sock_root is None:
-        exit("launch_bootloader_sc: Missing '--sock-root' for emulated flow")
+        log.error("launch_bootloader_sc: Missing '--sock-root' for emulated flow")
+        exit(1)
     launch_emulator(args, do_sc=True)
 
 

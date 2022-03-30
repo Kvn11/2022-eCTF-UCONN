@@ -33,7 +33,8 @@ void pkcs_decode(const unsigned char* msg, unsigned long msglen, int block_type,
 // RSA
 
 void montgomery(const struct bn* A, const struct bn* M, struct bn* C); // Returns: (A^65537 MOD M)
-#define RSA_DECODE(cryptotext, modulus, result) montgomery(cryptotext, modulus, result)
+
+void rsa_decrypt(uint8_t* cipher_text, uint8_t* key, uint8_t* result);
 
 // ChaCha20
 
