@@ -14,11 +14,9 @@
 import time
 import argparse
 import logging
-<<<<<<< HEAD
 import inspect
-=======
+
 from pathlib import Path
->>>>>>> 50ca94fc3d3333833205d71bc5834e304fba4af1
 import subprocess
 import asyncio
 
