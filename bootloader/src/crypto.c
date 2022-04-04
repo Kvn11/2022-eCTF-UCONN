@@ -322,7 +322,7 @@ void rsa_decrypt(uint8_t* cipher_text, uint8_t* key, uint8_t** result)
 	bignum_from_ptr(&modulus, key, 256);
 
 	montgomery(&cipher, &modulus, &tmp_result);
-	pkcs_decode(&cipher, 32, 0, 2048, result, 0);
+	pkcs_decode(&(cipher.array), 32, 0, 2048, result, 0);
 }
 
 /*

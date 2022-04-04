@@ -45,26 +45,6 @@ def load_configuration(socket_number: int, config_file: Path):
         while sock.recv(1) != b"C":
             pass
 
-        #generate token
-        token = os.random(32)
-        private_key = import_RSA_key_from_file(PRIVATE_KEY)
-    
-        #Sign token
-        signature = generate_signature(token, private_key)
-
-        #Send signed token
-        log.info("Sending token and signature...")
-        sock.send(signature)
-
-        #Send unsigned token
-        sock.send(token)
-        
-        log.info("Waiting for response...")
-        response = sock.recv(1)
-        log.info("Response received")
-        if response != RESP_OK:
-            exit(f"ERROR: Bootloader responded with {repr(response)}")
-
         # Send the size
         log.info("Sending the size...")
         payload = struct.pack(">I", size)

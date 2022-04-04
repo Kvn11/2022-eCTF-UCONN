@@ -54,6 +54,8 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 #define CONFIGURATION_SIGNATURE_PTR (CONFIGURATION_STORAGE_PTR)
+#define CONFIGURATION_CHACHA_NONCE_PTR (CONFIGURATION_SIGNATURE_PTR + 256)
+#define CONFIGURATION_CHACHA_CTEXT_PTR (CONFIGURATION_CHACHA_NONCE_PTR + 96)    
 
 #define EEPROM_MODULUS_SIZE (64) // Size is in 32 bit words
 #define EEPROM_CHACHA_SIZE  (8)
@@ -283,9 +285,8 @@ void handle_update(void)
  */
 void handle_configure(void)
 {
+    uint32_t size = 0;
     uint32_t rsa_mod[32];
-    uint8_t token_sig[SIG_SIZE];
-    uint8_t u8_token[TOKEN_SIZE];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'C');
@@ -293,48 +294,22 @@ void handle_configure(void)
     // TODO: Make sure signature is valid before we begin loading it:
 
     uart_writeb(HOST_UART, 'C');
-    
-    // Retrieve configuration
-    uart_read(HOST_UART, token_sig, SIG_SIZE);
-    uart_read(HOST_UART, u8_token, TOKEN_SIZE);
 
-    EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE);
+    // Receive size
+    size = (((uint32_t)uart_readb(HOST_UART)) << 24);
+    size |= (((uint32_t)uart_readb(HOST_UART)) << 16);
+    size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
+    size |= ((uint32_t)uart_readb(HOST_UART));
 
-    uint8_t* token_decoded;
-    rsa_decrypt(token_sig, rsa_mod, &token_decoded);
-
-    int failed = 1;
-    if(token_decoded)
+    if(size != (SIG_SIZE))
     {
-        failed = 0;
-        for(int i = 0; i < 32 && !failed; i++)
-        {
-            failed = failed || (token_decoded[i] != u8_token[i]);
-        }
+        while(1);
     }
 
-    uart_writeb(HOST_UART, failed);
+    flash_erase_page(CONFIGURATION_METADATA_PTR);
+    flash_write_word(size, CONFIGURATION_SIZE_PTR);
 
-    if(!failed)
-    {
-        uint32_t size = 0;
-
-        // Receive size
-        size = (((uint32_t)uart_readb(HOST_UART)) << 24);
-        size |= (((uint32_t)uart_readb(HOST_UART)) << 16);
-        size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
-        size |= ((uint32_t)uart_readb(HOST_UART));
-
-        if(size != (SIG_SIZE))
-        {
-            while(1);
-        }
-
-        flash_erase_page(CONFIGURATION_METADATA_PTR);
-        flash_write_word(size, CONFIGURATION_SIZE_PTR);
-
-        load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
-    }
+    load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
 }
 
 

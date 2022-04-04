@@ -9,11 +9,10 @@
 # 2022 MITRE eCTF competition, and may not meet MITRE standards for quality.
 # Use this code at your own risk!
 
-import json
-form base64 import b64encode
 import logging
 from pathlib import Path
 import socket
+import os
 from sys import stderr
 from Crypto.PublicKey.RSA import RsaKey
 from Crypto.PublicKey import RSA
@@ -79,15 +78,16 @@ def read_bytes_from_file(fileName: str):
     return data
 
 def import_RSA_key_from_file(fileName: str):
+    print(os.listdir('.'))
     key_path = Path(fileName)
-    key = RSA.import_key(key_path.read_bytes())
+    key = RSA.import_key(key_path.read_text())
     return key
 
 def rsa_encrypt(data: bytes, key: RsaKey):
     cipher = PKCS1_OAEP.new(key)
     cipher_text = cipher.encrypt(data)
     # return is bytes type
-    return ciphertext
+    return cipher_text
 
 """
 ** Only used for testing, leave it commented otherwise.
@@ -120,9 +120,9 @@ def encrypt_chacha(data: bytes, key: bytes):
     cipher = ChaCha20.new(key=key)
     ciphertext = cipher.encrypt(data)
     
-    return (ciphertext, cipher.nonce)
+    return cipher.nonce + ciphertext
 
-def decrypt_chacha(ciphertext: bytes, key: btyes, nonce: bytes):
+def decrypt_chacha(ciphertext: bytes, key: bytes, nonce: bytes):
     cipher = ChaCha20.new(key=key, nonce=nonce)
     plaintext = cipher.decrypt(ciphertext)
 

@@ -28,9 +28,9 @@ def protect_firmware(
 ):
     print_banner("SAFFIRe Firmware Protect Tool")
 
-    # Read in the raw firmware binary
+    # Read in the raw firmware binary, encrypt
     log.info("Reading the firmware...")
-    firmware_data = firmware_file.read_bytes()
+    firmware_data = util.encrypt_chacha(firmware_file.read_bytes(), b'\x41'*32)
 
     log.info("Packaging the firmware...")
 

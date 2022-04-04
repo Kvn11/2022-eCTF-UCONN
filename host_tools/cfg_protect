@@ -14,7 +14,7 @@
 import argparse
 import logging
 from pathlib import Path
-from util import print_banner, CONFIGURATION_ROOT, LOG_FORMAT, PRIVATE_KEY, import_RSA_key_from_file, generate_signature
+from util import print_banner, CONFIGURATION_ROOT, LOG_FORMAT, PRIVATE_KEY, import_RSA_key_from_file, generate_signature, encrypt_chacha
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -25,14 +25,8 @@ def protect_configuration(raw_cfg: Path, protected_cfg: Path):
 
     # Read in the raw configuration binary
     log.info("Reading configuration data...")
-    file_data = raw_cfg.read_bytes()
-    
-    # TODO:
-    # encrypt file data:
-    #-----
+    file_data = encrypt_chacha(raw_cfg.read_bytes(), b'A'*32)
 
-
-    #-----
     log.info("Packaging the configuration...")
 
     # generate signature:
@@ -41,6 +35,7 @@ def protect_configuration(raw_cfg: Path, protected_cfg: Path):
     log.info("Signature generated for config data\n")
     # Write to the output file
     # First 256 bytes will be of the signature.
+    # file_data = nonce + ciphertext
     protected_cfg.write_bytes(signature + file_data)
 
     log.info("Configuration protected\n")

@@ -20,7 +20,7 @@ RUN apt-get update && apt-get upgrade -y && \
 # Install the python libraries we will need
 RUN python3 -m pip install pycryptodome
 
-# Create bootloader binary folder
+# Create bootloader binary folderdocker
 RUN mkdir /bootloader
 
 # Add any system-wide secrets here
