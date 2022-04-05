@@ -54,17 +54,13 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 #define CONFIGURATION_SIGNATURE_PTR (CONFIGURATION_STORAGE_PTR)
-#define CONFIGURATION_CHACHA_NONCE_PTR (CONFIGURATION_SIGNATURE_PTR + 256)
-#define CONFIGURATION_CHACHA_CTEXT_PTR (CONFIGURATION_CHACHA_NONCE_PTR + 96)    
+#define CONFIGURATION_CHACHA_NONCE_PTR (CONFIGURATION_SIGNATURE_PTR + 96)
+#define CONFIGURATION_CHACHA_CTEXT_PTR (CONFIGURATION_CHACHA_NONCE_PTR + 96)
 
 #define EEPROM_MODULUS_SIZE (64) // Size is in 32 bit words
 #define EEPROM_CHACHA_SIZE  (8)
 #define EEPROM_MODULUS_PTR  ((uint32_t)0)
 #define EEPROM_CHACHA_PTR   (EEPROM_MODULUS_PTR + EEPROM_MODULUS_SIZE)
-
-#define DEF_CHECKSUM CONFIGURATION_STORAGE_PTR
-#define SIG_SIZE 256 // UART_read() takes bytes, so this is the same as 2048 bits
-#define TOKEN_SIZE 32 // 32 random token bytes
 
 
 // Firmware update constants
@@ -288,11 +284,10 @@ void handle_configure(void)
     uint32_t size = 0;
     uint32_t rsa_mod[32];
 
+    EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE);
+    little_to_big32(rsa_mod, EEPROM_MODULUS_SIZE);
+
     // Acknowledge the host
-    uart_writeb(HOST_UART, 'C');
-
-    // TODO: Make sure signature is valid before we begin loading it:
-
     uart_writeb(HOST_UART, 'C');
 
     // Receive size
@@ -301,15 +296,15 @@ void handle_configure(void)
     size |= (((uint32_t)uart_readb(HOST_UART)) << 8);
     size |= ((uint32_t)uart_readb(HOST_UART));
 
-    if(size != (SIG_SIZE))
-    {
-        while(1);
-    }
-
     flash_erase_page(CONFIGURATION_METADATA_PTR);
     flash_write_word(size, CONFIGURATION_SIZE_PTR);
 
     load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
+
+    uart_writeb(HOST_UART, (uint8_t)(size >> 24));
+    uart_writeb(HOST_UART, (uint8_t)(size >> 16));
+    uart_writeb(HOST_UART, (uint8_t)(size >> 8));
+    uart_writeb(HOST_UART, (uint8_t)(size));
 }
 
 

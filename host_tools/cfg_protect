@@ -11,10 +11,11 @@
 # 2022 MITRE eCTF competition, and may not meet MITRE standards for quality.
 # Use this code at your own risk!
 
+import os
 import argparse
 import logging
 from pathlib import Path
-from util import print_banner, CONFIGURATION_ROOT, LOG_FORMAT, PRIVATE_KEY, import_RSA_key_from_file, generate_signature, encrypt_chacha
+from util import print_banner, CONFIGURATION_ROOT, LOG_FORMAT, generate_signature, encrypt_chacha, read_bytes_from_file
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -23,22 +24,23 @@ log = logging.getLogger(Path(__file__).name)
 def protect_configuration(raw_cfg: Path, protected_cfg: Path):
     print_banner("SAFFIRe Configuration Protect Tool")
 
+    # Generate signature key:
+    sig_key = os.urandom(32)
+
     # Read in the raw configuration binary
     log.info("Reading configuration data...")
-    file_data = encrypt_chacha(raw_cfg.read_bytes(), b'A'*32)
+    cfg_file_data = raw_cfg.read_bytes()
+
+    # Read in the data key:
+    data_key = read_bytes_from_file("/secrets/chacha_data.key")
+
+    # Create signature:
+    sig = generate_signature(cfg_file_data, data_key, sig_key)  
 
     log.info("Packaging the configuration...")
 
-    # generate signature:
-    private_key = import_RSA_key_from_file(PRIVATE_KEY)
-    signature = generate_signature(file_data, private_key)
-    log.info("Signature generated for config data\n")
-    # Write to the output file
-    # First 256 bytes will be of the signature.
-    # file_data = nonce + ciphertext
-    protected_cfg.write_bytes(signature + file_data)
-
-    log.info("Configuration protected\n")
+    # Write to the output file:
+    protected_cfg.write_bytes(sig + cfg_file_data)
 
 
 def main():

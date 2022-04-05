@@ -223,109 +223,6 @@ void sha256_done(struct sha256_context *ctx, uint8_t *hash)
 }
 
 /*
-*   pkcs padding
-*
-*/
-
-void pkcs_decode(const unsigned char* msg, unsigned long msglen, int block_type, unsigned long modulus_bitlen, char** out, int *is_valid)
-{
-    unsigned long modulus_len, ps_len, i;
-    int result;
-
-    *is_valid = 0;
-    *out = 0;
-
-    modulus_len = (modulus_bitlen >> 3) + ((modulus_bitlen & 7) ? 1 : 0);
-
-    if((msglen > modulus_len) || (modulus_len < 11))
-    {
-        return;
-    }
-
-    if((msg[0] != 0x00) || (msg[1] != 0x01))
-    {
-        return;
-    }
-
-    for(i = 2; i < modulus_len - 1; i++)
-    {
-        if(msg[i] != 0xFF)
-        {
-            break;
-        }
-    }
-
-    if(msg[i] != 0)
-    {
-        return;
-    }
-
-    ps_len = i - 2;
-
-    if(ps_len < 8)
-    {
-        return;
-    }
-
-    *out = msg + (2 + ps_len + 1);
-
-	if(is_valid)
-	{
-		*is_valid = 1;
-	}
-}
-
-/*
-*	Montgomery multiplication tree
-*/
-void montgomery(const struct bn* A, const struct bn* M, struct bn* C)
-{
-	uint32_t exponent = 65537;
-	struct bn R0;
-	struct bn R1;
-	struct bn tmp;
-
-	bignum_from_int(&R0, 1);
-	bignum_assign(&R1, A);
-	bignum_init(&tmp);
-
-	for(int i = 16; i >= 0; i--)
-	{
-		if((exponent >> i) & 1)
-		{
-			bignum_mul(&R0, &R1, &tmp); // tmp = R0 * R1
-			bignum_mod(&tmp, M, &R0);
-
-			bignum_mul(&R1, &R1, &tmp);
-			bignum_mod(&tmp, M, &R1);
-		}
-		else
-		{
-			bignum_mul(&R0, &R1, &tmp);
-			bignum_mod(&tmp, M, &R1);
-
-			bignum_mul(&R0, &R0, &tmp);
-			bignum_mod(&tmp, M, &R0);
-		}
-	}
-
-	bignum_assign(C, &R0);
-}
-
-void rsa_decrypt(uint8_t* cipher_text, uint8_t* key, uint8_t** result)
-{
-	struct bn cipher;
-	struct bn modulus;
-	struct bn tmp_result;
-
-	bignum_from_ptr(&cipher, cipher_text, 256);
-	bignum_from_ptr(&modulus, key, 256);
-
-	montgomery(&cipher, &modulus, &tmp_result);
-	pkcs_decode(&(cipher.array), 32, 0, 2048, result, 0);
-}
-
-/*
 *	ChaCha20
 */
 
@@ -439,4 +336,48 @@ void ChaCha20(uint8_t *out, const uint8_t *inp,
          */
         input[12]++;
     }
+}
+
+int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_len, uint32_t data_key[8])
+{
+	uint32_t counter[4];
+	uint8_t signature_data_decrypt[80];
+
+	uint32_t sig_counter[4];
+	uint32_t sig_key[8];
+	uint8_t sig_sig_decrypt[32];
+	uint8_t data_hash[32];
+
+	for(int i = 0; i < 4; i++)
+	{
+		counter[i] = CHACHA_U8TOU32(&signature[i*4]);
+	}
+
+	ChaCha20(signature_data_decrypt, &signature[16], 80, data_key, counter);
+
+	for(int i = 0; i < 4; i++)
+	{
+		sig_counter[i] = CHACHA_U8TOU32(&signature_data_decrypt[i*4]);
+	}
+
+	for(int i = 0; i < 8; i++)
+	{
+		sig_key[i] = CHACHA_U8TOU32(&signature_data_decrypt[(i*4)+32])
+	}
+
+	ChaCha20(sig_sig_decrypt, &signature_data_decrypt[16], 32, sig_key, sig_counter);
+
+	struct sha256_context sha;
+	sha256_init(&sha);
+	sha256_hash(&sha, data, data_len);
+	sha256_done(&sha, data_hash);
+
+	for(int i = 0; i < 32; i++)
+	{
+		if(data_hash[i] != sig_sig_decrypt[i])
+		{
+			return 0;
+		}
+	}
+	return 1;
 }

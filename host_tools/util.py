@@ -14,8 +14,6 @@ from pathlib import Path
 import socket
 import os
 from sys import stderr
-from Crypto.PublicKey.RSA import RsaKey
-from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
@@ -77,17 +75,6 @@ def read_bytes_from_file(fileName: str):
     in_file.close()
     return data
 
-def import_RSA_key_from_file(fileName: str):
-    print(os.listdir('.'))
-    key_path = Path(fileName)
-    key = RSA.import_key(key_path.read_text())
-    return key
-
-def rsa_encrypt(data: bytes, key: RsaKey):
-    cipher = PKCS1_OAEP.new(key)
-    cipher_text = cipher.encrypt(data)
-    # return is bytes type
-    return cipher_text
 
 """
 ** Only used for testing, leave it commented otherwise.
@@ -96,11 +83,13 @@ def get_public_key(key: RsaKey):
     return key.publickey()
 """
 
-def generate_signature(data: bytes, private_key: RsaKey):
+def generate_signature(data: bytes, data_key: bytes,  sig_key: bytes):
     hashed_object = SHA256.new(data)
-    verifier_object = pkcs1_15.new(private_key)
-    signature = verifier_object.sign(hashed_object)
-    return signature
+
+    # encrypt hash with sig_key, then append sig_key to hash
+    signature = encrypt_chacha(hashed_object.digest(), sig_key) + sig_key
+    encrypted_signature = encrypt_chacha(signature, data_key)
+    return encrypted_signature
 
 """
 
@@ -117,10 +106,13 @@ def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
 """
 
 def encrypt_chacha(data: bytes, key: bytes):
-    cipher = ChaCha20.new(key=key)
+    counter = os.urandom(4)
+    nonce = os.urandom(12)
+    cipher = ChaCha20.new(key=key,nonce=nonce)
+    cipher.seek(int.from_bytes(counter, 'big'))
     ciphertext = cipher.encrypt(data)
     
-    return cipher.nonce + ciphertext
+    return counter + nonce + ciphertext
 
 def decrypt_chacha(ciphertext: bytes, key: bytes, nonce: bytes):
     cipher = ChaCha20.new(key=key, nonce=nonce)

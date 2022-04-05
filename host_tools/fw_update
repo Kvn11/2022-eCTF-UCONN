@@ -52,14 +52,13 @@ def update_firmware(socket_number: int, firmware_file: Path):
 
         # Send the version, size, and release message
         log.info("Sending signature, version, size, and release message...")
-        log.info(f"Signature is: {signature[0]:02x}:{signature[1]:02x}:{signature[2]:02x}:{signature[3]:02x}")
+        log.info(f"First 4 bytes of Signature is: {signature[0]:02x}:{signature[1]:02x}:{signature[2]:02x}:{signature[3]:02x}")
         payload = (
             signature +
             struct.pack(">HI", version_num, firmware_size)
             + release_msg.encode()
             + b"\x00"
         )
-        # We will generate a signature based off this payload.
 
         sock.send(payload)
         response = sock.recv(1)
