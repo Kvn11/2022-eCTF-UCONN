@@ -21,6 +21,7 @@
 #include "uart.h"
 
 #include "crypto.h"
+#include "sha256.h"
 
 // this will run if EXAMPLE_AES is defined in the Makefile (see line 54)
 #ifdef EXAMPLE_AES

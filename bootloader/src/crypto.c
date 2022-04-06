@@ -44,6 +44,7 @@ int verify_data_prehash(uint8_t *signature, size_t sig_len, uint8_t* hash, uint3
 int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_len, uint32_t data_key[8])
 {
 	uint8_t u8_sha_out[32];
+	struct sha256_context sha;
 
 	sha256_init(&sha);
 	sha256_hash(&sha, data, data_len);
