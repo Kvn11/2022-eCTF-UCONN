@@ -61,9 +61,9 @@ def load_configuration(socket_number: int, config_file: Path):
         if received_ack == VERIFY_OK:
             log.info("Bootloader verified the configuration successfully")
         elif received_ack == VERIFY_FAIL:
-            log.info("Bootloader verification failed internally")
-        else:
             log.info("Bootloader configuration signature incorrect")
+        else:
+            log.info("Bootloader verification failed internally")
 
 
 def main():

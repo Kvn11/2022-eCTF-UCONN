@@ -18,7 +18,7 @@ from pathlib import Path
 import socket
 import struct
 
-from util import print_banner, send_packets, RESP_OK, FIRMWARE_ROOT, LOG_FORMAT
+from util import print_banner, send_packets, RESP_OK, FIRMWARE_ROOT, LOG_FORMAT, VERIFY_OK, VERIFY_FAIL
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -50,31 +50,42 @@ def update_firmware(socket_number: int, firmware_file: Path):
         while sock.recv(1) != b"U":
             pass
 
-        # Send the signature, size, and version
-        log.info("Sending signature, size, version...")
-        payload = (
-            signature +
-            struct.pack(">II", version_num, firmware_size)
-        )
+        # Send the signature
+        sock.send(signature)
+        signature_recv = sock.recv(1)
+        if signature_recv != b'\x00':
+            log.info("Bootloader signature transfer failed")
+        else:
+            log.info("Bootloader signature transfer success")
 
-        sock.send(payload)
-        response = sock.recv(1)
-        if response != RESP_OK:
-            exit(f"ERROR: Bootloader responded with {repr(response)}")
+        log.info("Sending metadata")
+        versize = struct.pack("<II", firmware_size, version_num) + release_msg.encode() + b"\x00"
+        sock.send(versize)
+
 
         verify_result = sock.recv(1)
         if verify_result == VERIFY_OK:
             log.info("Bootloader verified metadata successfully")
         elif verify_result == VERIFY_FAIL:
-            log.info("Bootloader verification failed internally")
-        else:
             log.info("Bootloader metadata signature incorrect")
+        else:
+            log.info("Bootloader verification failed internally")
+
+        version_result = sock.recv(1)
+        if version_result == RESP_OK:
+            log.info("Bootloader version good")
+        else:
+            log.info("Bootloader version bad")
 
         # Send packets
         log.info("Sending firmware packets...")
         send_packets(sock, firmware)
 
-        log.info("Firmware updated\n")
+        verify_result = sock.recv(1)
+        if verify_result == RESP_OK:
+            log.info("Firmware updated\n")
+        else:
+            log.info("Firmware update failed\n")
 
 
 def main():

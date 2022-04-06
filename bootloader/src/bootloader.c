@@ -28,7 +28,6 @@
 #include "aes.h"
 #endif
 
-
 // Storage layout
 
 /*
@@ -67,7 +66,6 @@
 // Firmware update constants
 #define FRAME_OK 0x00
 #define FRAME_BAD 0x01
-
 
 /**
  * @brief Boot the firmware.
@@ -198,38 +196,33 @@ void handle_update(void)
     uint32_t version = 0;
     uint32_t size = 0;
     uint32_t rel_msg_size = 0;
-    uint8_t rel_msg[1025]; // 1024 + terminator
-    uint8_t signature[SIG_SIZE];
-    uint8_t u8_sha_out[32];
+    uint32_t signature[SIG_SIZE/4];
     uint32_t chacha_key[8];
+    uint8_t rel_msg[1025]; // 1024 + terminator
+    uint8_t u8_sha_out[32];
+
     struct sha256_context sha;
     sha256_init(&sha);
     EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'U');
+
+    uart_read(HOST_UART, (uint8_t*)signature, SIG_SIZE);
+    uart_writeb(HOST_UART, 0);
+
+    uart_read(HOST_UART, (uint8_t*)&size, 4);
+    uart_read(HOST_UART, (uint8_t*)&version, 4);
     
-    // Receive signature
-    uart_read(HOST_UART, signature, SIG_SIZE);
-
-    // Receive version
-    version = ((uint32_t)uart_readb(HOST_UART)) << 24;
-    version |= ((uint32_t)uart_readb(HOST_UART)) << 16;
-    version |= ((uint32_t)uart_readb(HOST_UART)) << 8;
-    version |= (uint32_t)uart_readb(HOST_UART);
-
-    // Receive size
-    size = ((uint32_t)uart_readb(HOST_UART)) << 24;
-    size |= ((uint32_t)uart_readb(HOST_UART)) << 16;
-    size |= ((uint32_t)uart_readb(HOST_UART)) << 8;
-    size |= (uint32_t)uart_readb(HOST_UART);
+    rel_msg_size = uart_readline(HOST_UART, rel_msg) + 1;
 
     sha256_hash(&sha, &version, 4);
     sha256_hash(&sha, &size, 4);
-
-    rel_msg_size = uart_readline(HOST_UART, rel_msg) + 1;
     sha256_hash(&sha, rel_msg, rel_msg_size);
     sha256_done(&sha, u8_sha_out);
+
+    int result = verify_data_prehash(signature, SIG_SIZE, u8_sha_out, chacha_key);
+    uart_writeb(HOST_UART, (uint8_t)result);
 
     // Check the version
     current_version = *((uint32_t *)FIRMWARE_VERSION_PTR);
@@ -237,10 +230,15 @@ void handle_update(void)
         current_version = (uint32_t)OLDEST_VERSION;
     }
 
-    if ((version != 0) && (version < current_version)) {
+    if ((version != 0) && (version < current_version)) 
+    {
         // Version is not acceptable
         uart_writeb(HOST_UART, FRAME_BAD);
         return;
+    }
+    else
+    {
+        uart_writeb(HOST_UART, FRAME_OK);
     }
 
     // Clear firmware metadata
@@ -282,15 +280,11 @@ void handle_update(void)
         rem_bytes += 4 - (rem_bytes % 4); // Account for partial word
     }
     flash_write((uint32_t *)rel_msg_read_ptr, rel_msg_write_ptr, rem_bytes >> 2);
-
-    // Acknowledge
-    uart_writeb(HOST_UART, FRAME_OK);
-
-    int result = verify_data_prehash(signature, SIG_SIZE, u8_sha_out, chacha_key);
-    uart_writeb(HOST_UART, (uint8_t)result);
     
     // Retrieve firmware
     load_data(HOST_UART, FIRMWARE_STORAGE_PTR, size);
+
+    uart_writeb(HOST_UART, FRAME_OK);
 }
 
 
@@ -301,7 +295,7 @@ void handle_configure(void)
 {
     uint32_t size = 0;
     uint32_t chacha_key[8];
-    uint32_t signature[SIG_SIZE];
+    uint32_t signature[SIG_SIZE/4];
     EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
 
     // Acknowledge the host
