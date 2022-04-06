@@ -50,20 +50,25 @@ def update_firmware(socket_number: int, firmware_file: Path):
         while sock.recv(1) != b"U":
             pass
 
-        # Send the version, size, and release message
-        log.info("Sending signature, version, size, and release message...")
-        log.info(f"First 4 bytes of Signature is: {signature[0]:02x}:{signature[1]:02x}:{signature[2]:02x}:{signature[3]:02x}")
+        # Send the signature, size, and version
+        log.info("Sending signature, size, version...")
         payload = (
             signature +
-            struct.pack(">HI", version_num, firmware_size)
-            + release_msg.encode()
-            + b"\x00"
+            struct.pack(">II", version_num, firmware_size)
         )
 
         sock.send(payload)
         response = sock.recv(1)
         if response != RESP_OK:
             exit(f"ERROR: Bootloader responded with {repr(response)}")
+
+        verify_result = sock.recv(1)
+        if verify_result == VERIFY_OK:
+            log.info("Bootloader verified metadata successfully")
+        elif verify_result == VERIFY_FAIL:
+            log.info("Bootloader verification failed internally")
+        else:
+            log.info("Bootloader metadata signature incorrect")
 
         # Send packets
         log.info("Sending firmware packets...")

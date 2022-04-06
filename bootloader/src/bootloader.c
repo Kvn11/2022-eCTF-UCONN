@@ -40,10 +40,14 @@
  *      Size:    0x0002FC00 : 0x0003000 (1KB = 4B + pad)
  *      Cfg:     0x00030000 : 0x0004000 (64KB)
  */
+
+#define SIG_SIZE 88
+
 #define FIRMWARE_METADATA_PTR      ((uint32_t)(FLASH_START + 0x0002B400))
-#define FIRMWARE_SIZE_PTR          ((uint32_t)(FIRMWARE_METADATA_PTR + 0))
-#define FIRMWARE_VERSION_PTR       ((uint32_t)(FIRMWARE_METADATA_PTR + 4))
-#define FIRMWARE_RELEASE_MSG_PTR   ((uint32_t)(FIRMWARE_METADATA_PTR + 8))
+#define FIRMWARE_SIGNATURE_PTR     ((uint32_t)(FIRMWARE_METADATA_PTR))
+#define FIRMWARE_VERSION_PTR          ((uint32_t)(FIRMWARE_SIGNATURE_PTR + SIG_SIZE))
+#define FIRMWARE_SIZE_PTR       ((uint32_t)(FIRMWARE_VERSION_PTR + 4))
+#define FIRMWARE_RELEASE_MSG_PTR   ((uint32_t)(FIRMWARE_SIZE_PTR + 4))
 #define FIRMWARE_RELEASE_MSG_PTR2  ((uint32_t)(FIRMWARE_METADATA_PTR + FLASH_PAGE_SIZE))
 
 #define FIRMWARE_STORAGE_PTR       ((uint32_t)(FIRMWARE_METADATA_PTR + (FLASH_PAGE_SIZE*4)))
@@ -54,14 +58,10 @@
 
 #define CONFIGURATION_STORAGE_PTR  ((uint32_t)(CONFIGURATION_METADATA_PTR + FLASH_PAGE_SIZE))
 #define CONFIGURATION_SIGNATURE_PTR (CONFIGURATION_STORAGE_PTR)
-#define CONFIGURATION_CHACHA_NONCE_PTR (CONFIGURATION_SIGNATURE_PTR + 96)
-#define CONFIGURATION_CHACHA_CTEXT_PTR (CONFIGURATION_CHACHA_NONCE_PTR + 96)
+#define CONFIGURATION_CHACHA_CTEXT_PTR (CONFIGURATION_SIGNATURE_PTR + SIG_SIZE)
 
-#define EEPROM_MODULUS_SIZE (64) // Size is in 32 bit words
 #define EEPROM_CHACHA_SIZE  (8)
-#define EEPROM_MODULUS_PTR  ((uint32_t)0)
-#define EEPROM_CHACHA_PTR   (EEPROM_MODULUS_PTR + EEPROM_MODULUS_SIZE)
-
+#define EEPROM_CHACHA_PTR   (0)
 
 // Firmware update constants
 #define FRAME_OK 0x00
@@ -199,6 +199,11 @@ void handle_update(void)
     uint32_t rel_msg_size = 0;
     uint8_t rel_msg[1025]; // 1024 + terminator
     uint8_t signature[SIG_SIZE];
+    uint8_t u8_sha_out[32];
+    uint32_t chacha_key[8];
+    struct sha256_context sha;
+    sha256_init(&sha);
+    EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'U');
@@ -207,7 +212,9 @@ void handle_update(void)
     uart_read(HOST_UART, signature, SIG_SIZE);
 
     // Receive version
-    version = ((uint32_t)uart_readb(HOST_UART)) << 8;
+    version = ((uint32_t)uart_readb(HOST_UART)) << 24;
+    version |= ((uint32_t)uart_readb(HOST_UART)) << 16;
+    version |= ((uint32_t)uart_readb(HOST_UART)) << 8;
     version |= (uint32_t)uart_readb(HOST_UART);
 
     // Receive size
@@ -216,8 +223,12 @@ void handle_update(void)
     size |= ((uint32_t)uart_readb(HOST_UART)) << 8;
     size |= (uint32_t)uart_readb(HOST_UART);
 
-    // Receive release message
-    rel_msg_size = uart_readline(HOST_UART, rel_msg) + 1; // Include terminator
+    sha256_hash(&sha, &version, 4);
+    sha256_hash(&sha, &size, 4);
+
+    rel_msg_size = uart_readline(HOST_UART, rel_msg) + 1;
+    sha256_hash(&sha, rel_msg, rel_msg_size);
+    sha256_done(&sha, u8_sha_out);
 
     // Check the version
     current_version = *((uint32_t *)FIRMWARE_VERSION_PTR);
@@ -233,6 +244,9 @@ void handle_update(void)
 
     // Clear firmware metadata
     flash_erase_page(FIRMWARE_METADATA_PTR);
+
+    // Save signature
+    flash_write(signature, FIRMWARE_SIGNATURE_PTR, SIG_SIZE);
 
     // Only save new version if it is not 0
     if (version != 0) {
@@ -270,6 +284,9 @@ void handle_update(void)
 
     // Acknowledge
     uart_writeb(HOST_UART, FRAME_OK);
+
+    int result = verify_data_prehash(signature, SIG_SIZE, u8_sha_out, chacha_key);
+    uart_writeb(HOST_UART, (uint8_t)result);
     
     // Retrieve firmware
     load_data(HOST_UART, FIRMWARE_STORAGE_PTR, size);
@@ -282,10 +299,9 @@ void handle_update(void)
 void handle_configure(void)
 {
     uint32_t size = 0;
-    uint32_t rsa_mod[32];
-
-    EEPROMRead(rsa_mod, EEPROM_MODULUS_PTR, EEPROM_MODULUS_SIZE);
-    little_to_big32(rsa_mod, EEPROM_MODULUS_SIZE);
+    uint32_t chacha_key[8];
+    uint32_t signature[SIG_SIZE];
+    EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'C');
@@ -301,10 +317,9 @@ void handle_configure(void)
 
     load_data(HOST_UART, CONFIGURATION_STORAGE_PTR, size);
 
-    uart_writeb(HOST_UART, (uint8_t)(size >> 24));
-    uart_writeb(HOST_UART, (uint8_t)(size >> 16));
-    uart_writeb(HOST_UART, (uint8_t)(size >> 8));
-    uart_writeb(HOST_UART, (uint8_t)(size));
+    memory_copy(signature, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE);
+    int result = verify_data(signature, SIG_SIZE, CONFIGURATION_CHACHA_CTEXT_PTR, size - SIG_SIZE, chacha_key);
+    uart_writeb(HOST_UART, (uint8_t)result);
 }
 
 

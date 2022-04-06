@@ -30,6 +30,9 @@ RELEASE_MESSAGES_ROOT = Path("/messages")
 
 RESP_OK = b"\x00"
 
+VERIFY_OK = b"\x01"
+VERIFY_FAIL = b"\x00"
+
 
 def print_banner(s: str) -> None:
     """Print an underlined string to stdout
@@ -86,8 +89,10 @@ def get_public_key(key: RsaKey):
 def generate_signature(data: bytes, data_key: bytes,  sig_key: bytes):
     hashed_object = SHA256.new(data)
 
+    out_hash = hashed_object.digest()
+
     # encrypt hash with sig_key, then append sig_key to hash
-    signature = encrypt_chacha(hashed_object.digest(), sig_key) + sig_key
+    signature = encrypt_chacha(out_hash, sig_key) + sig_key
     encrypted_signature = encrypt_chacha(signature, data_key)
     return encrypted_signature
 
@@ -106,13 +111,11 @@ def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
 """
 
 def encrypt_chacha(data: bytes, key: bytes):
-    counter = os.urandom(4)
     nonce = os.urandom(12)
     cipher = ChaCha20.new(key=key,nonce=nonce)
-    cipher.seek(int.from_bytes(counter, 'big'))
     ciphertext = cipher.encrypt(data)
     
-    return counter + nonce + ciphertext
+    return nonce + ciphertext
 
 def decrypt_chacha(ciphertext: bytes, key: bytes, nonce: bytes):
     cipher = ChaCha20.new(key=key, nonce=nonce)

@@ -35,8 +35,8 @@ RUN sh /host_tools/generate_secrets
 
 # Create EEPROM contents
 # RUN echo "Bootloader Data" > /bootloader/eeprom.bin
-RUN cat /secrets/public-key.bin > /bootloader/eeprom.bin
-RUN cat /secrets/chacha.key > /bootloader/eeprom.bin
+# RUN cat /secrets/public-key.bin > /bootloader/eeprom.bin
+RUN cat /secrets/chacha_data.key > /bootloader/eeprom.bin
 
 # Compile bootloader
 WORKDIR /bl_build

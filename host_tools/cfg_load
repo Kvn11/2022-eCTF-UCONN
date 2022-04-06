@@ -18,7 +18,7 @@ import socket
 import struct
 import os
 
-from util import print_banner, send_packets, RESP_OK, CONFIGURATION_ROOT, LOG_FORMAT, import_RSA_key_from_file, generate_signature, PRIVATE_KEY
+from util import print_banner, send_packets, RESP_OK, CONFIGURATION_ROOT, LOG_FORMAT, VERIFY_FAIL, VERIFY_OK
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -51,21 +51,19 @@ def load_configuration(socket_number: int, config_file: Path):
         sock.send(payload)
         
         # Send packets
-        log.info("Sending packets")
+        log.info("Sending packets...")
         send_packets(sock, configuration)
 
         # Receive size as acknowledgment
-        log.info("Receiving size...")
-        received_size = sock.recv(4)
+        log.info("Receiving acknowledgement...")
+        received_ack = sock.recv(1)
 
-        # Make sure that size is correct
-        log.info(f"size: {size}, size received: {int.from_bytes(received_size)}")
-        if (int.from_bytes(received_size, "big") != size):
-            log.info("Bootloader did not receive all packets...")
+        if received_ack == VERIFY_OK:
+            log.info("Bootloader verified the configuration successfully")
+        elif received_ack == VERIFY_FAIL:
+            log.info("Bootloader verification failed internally")
         else:
-            log.info("Bootloader successfully received everything")
-
-        log.info("Firmware configured\n")
+            log.info("Bootloader configuration signature incorrect")
 
 
 def main():

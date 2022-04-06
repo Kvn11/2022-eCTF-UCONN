@@ -101,8 +101,9 @@ arg_check:
 # Check arguments
 ${COMPILER}/bootloader.axf: arg_check
 ${COMPILER}/bootloader.axf: ${COMPILER}/common.o
-${COMPILER}/bootloader.axf: ${COMPILER}/bignum.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/crypto.o
+${COMPILER}/bootloader.axf: ${COMPILER}/sha.o
+${COMPILER}/bootloader.axf: ${COMPILER}/chacha.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/flash.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/uart.o
 ${COMPILER}/bootloader.axf: ${COMPILER}/bootloader.o
