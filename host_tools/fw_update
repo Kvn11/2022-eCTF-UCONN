@@ -35,6 +35,7 @@ def update_firmware(socket_number: int, firmware_file: Path):
         firmware = bytes.fromhex(data["firmware"])
         firmware_size = len(firmware)
         signature = bytes.fromhex(data["signature"])
+        firmware_signature = bytes.fromhex(data["firmware_signature"])
 
     # Connect to the bootloader
     log.info("Connecting socket...")
@@ -50,13 +51,20 @@ def update_firmware(socket_number: int, firmware_file: Path):
         while sock.recv(1) != b"U":
             pass
 
-        # Send the signature
+        # Send the metadata signature
         sock.send(signature)
         signature_recv = sock.recv(1)
         if signature_recv != b'\x00':
-            log.info("Bootloader signature transfer failed")
+            log.error("Bootloader metadata signature transfer failed")
         else:
-            log.info("Bootloader signature transfer success")
+            log.info("Bootloader metadata signature transfer success")
+
+        sock.send(firmware_signature)
+        signature_recv = sock.recv(1)
+        if signature_recv != b'\x00':
+            log.error("Bootloader firmware signature transfer failed")
+        else:
+            log.info("Bootloader firmware signature transfer success")
 
         log.info("Sending metadata")
         versize = struct.pack("<II", firmware_size, version_num) + release_msg.encode() + b"\x00"
@@ -67,15 +75,18 @@ def update_firmware(socket_number: int, firmware_file: Path):
         if verify_result == VERIFY_OK:
             log.info("Bootloader verified metadata successfully")
         elif verify_result == VERIFY_FAIL:
-            log.info("Bootloader metadata signature incorrect")
+            log.error("Bootloader metadata signature incorrect")
+            return
         else:
-            log.info("Bootloader verification failed internally")
+            log.error("Bootloader verification failed internally")
+            return
 
         version_result = sock.recv(1)
         if version_result == RESP_OK:
             log.info("Bootloader version good")
         else:
-            log.info("Bootloader version bad")
+            log.error("Bootloader version bad")
+            return
 
         # Send packets
         log.info("Sending firmware packets...")

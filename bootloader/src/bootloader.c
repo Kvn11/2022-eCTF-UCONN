@@ -20,6 +20,7 @@
 #include "flash.h"
 #include "uart.h"
 
+#include "common.h"
 #include "crypto.h"
 #include "sha256.h"
 
@@ -74,13 +75,41 @@ void handle_boot(void)
 {
     uint32_t size;
     uint32_t i = 0;
+    uint32_t signature[SIG_SIZE/4];
+    uint32_t chacha_key[8];
+
     uint8_t *rel_msg;
+    uint8_t u8_sha_out[32];
+
+    EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'B');
 
     // Find the metadata
     size = *((uint32_t *)FIRMWARE_SIZE_PTR);
+
+    memory_copy(signature, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE);
+
+    struct sha256_context sha;
+    sha256_init(&sha);
+
+    for(i = 0; i < size; i += 4)
+    {
+        int remaining = MIN(size - i, 4);
+        uint32_t block = LOAD_U32_BIG(((uint8_t*)(FIRMWARE_STORAGE_PTR + i)));
+
+        sha256_hash(&sha, &block, remaining);
+    }
+
+    sha256_done(&sha, u8_sha_out);
+
+    int result = verify_data_prehash(signature, SIG_SIZE, u8_sha_out, chacha_key);
+    uart_writeb(HOST_UART, (uint8_t)result);
+    if(result != VERIFY_OK)
+    {
+        return;
+    }
 
     // Copy the firmware into the Boot RAM section
     for (i = 0; i < size; i++) {
@@ -197,6 +226,7 @@ void handle_update(void)
     uint32_t size = 0;
     uint32_t rel_msg_size = 0;
     uint32_t signature[SIG_SIZE/4];
+    uint32_t fw_signature[SIG_SIZE/4];
     uint32_t chacha_key[8];
     uint8_t rel_msg[1025]; // 1024 + terminator
     uint8_t u8_sha_out[32];
@@ -211,6 +241,9 @@ void handle_update(void)
     uart_read(HOST_UART, (uint8_t*)signature, SIG_SIZE);
     uart_writeb(HOST_UART, 0);
 
+    uart_read(HOST_UART, (uint8_t*)fw_signature, SIG_SIZE);
+    uart_writeb(HOST_UART, 0);
+
     uart_read(HOST_UART, (uint8_t*)&size, 4);
     uart_read(HOST_UART, (uint8_t*)&version, 4);
     
@@ -223,6 +256,10 @@ void handle_update(void)
 
     int result = verify_data_prehash(signature, SIG_SIZE, u8_sha_out, chacha_key);
     uart_writeb(HOST_UART, (uint8_t)result);
+    if(result != VERIFY_OK)
+    {
+        return;
+    }
 
     // Check the version
     current_version = *((uint32_t *)FIRMWARE_VERSION_PTR);
@@ -245,7 +282,7 @@ void handle_update(void)
     flash_erase_page(FIRMWARE_METADATA_PTR);
 
     // Save signature
-    flash_write(signature, FIRMWARE_SIGNATURE_PTR, SIG_SIZE);
+    flash_write(fw_signature, FIRMWARE_SIGNATURE_PTR, SIG_SIZE);
 
     // Only save new version if it is not 0
     if (version != 0) {

@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define MIN(a,b) ((a < b) ? (a) : (b))
+
 static inline void u32to8_little(uint8_t *p, const uint32_t *w)
 {
     p[0] = (uint8_t)*w;

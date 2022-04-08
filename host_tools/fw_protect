@@ -38,10 +38,10 @@ def protect_firmware(
     # Construct the metadata
     firmware_size = len(firmware_data)
 
-    # There is no versioning data on the actual firmware size itself so we should sign the meta data instead.
+    log.info(f"[*] {firmware_data.hex()}")
     
     # Pack everything together so we can hash it all.
-    payload = struct.pack(">II", version, firmware_size) + release_message.encode() + b"\x00"
+    payload = struct.pack("<II", version, firmware_size) + release_message.encode() + b"\x00"
     
     # Generate key for signing
     sig_key = os.urandom(32)
@@ -51,6 +51,9 @@ def protect_firmware(
     
     # Generate signature over metadata.
     signature = generate_signature(payload, data_key, sig_key)
+    firmware_signature = generate_signature(firmware_data, data_key, sig_key)
+
+    log.info(f"[*] Signature: {firmware_signature.hex()}")
 
     # Create firmware storage structure
     data = {
@@ -58,7 +61,8 @@ def protect_firmware(
         "version_num": version,
         "release_msg": release_message,
         "firmware": firmware_data.hex(),
-        "signature": signature.hex()
+        "signature": signature.hex(),
+        "firmware_signature": firmware_signature.hex()
     }
 
     # Write to the meta-data file:

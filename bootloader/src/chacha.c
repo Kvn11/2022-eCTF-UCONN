@@ -11,8 +11,6 @@
     c+=d; b^=c; b=ROTL(b,7);  \
 }
 
-#define MIN(a,b) ((a < b) ? a : b)
-
 int chacha20_init(stream_state *hs,
                              const uint8_t *key,
                              size_t keySize,
