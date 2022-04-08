@@ -37,8 +37,8 @@
  *      Msg:     0x0002B408 : 0x0002BC00 (~2KB = 1KB + 1B + pad)
  *      Fw:      0x0002BC00 : 0x0002FC00 (16KB)
  * Configuration:
- *      Size:    0x0002FC00 : 0x0003000 (1KB = 4B + pad)
- *      Cfg:     0x00030000 : 0x0004000 (64KB)
+ *      Size:    0x0002FC00 : 0x00030000 (1KB = 4B + pad)
+ *      Cfg:     0x00030000 : 0x00040000 (64KB)
  */
 
 #define SIG_SIZE 88

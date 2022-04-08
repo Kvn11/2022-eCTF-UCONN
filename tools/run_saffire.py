@@ -15,8 +15,6 @@ import time
 import argparse
 import logging
 import inspect
-
-from pathlib import Path
 import subprocess
 import asyncio
 
@@ -114,9 +112,9 @@ def get_release_message(args):
     return run_subprocess_capture(cmd)
 
 
-def kill_system(args):
+def kill_bootloader(sysname):
     # Stop running bootloader containers
-    cmd = ["docker", "ps", "-q", "--filter", f"name={args.sysname}-bootloader"]
+    cmd = ["docker", "ps", "-q", "--filter", f"name={sysname}-bootloader"]
     bl_container_ids = (
         subprocess.run(cmd, capture_output=True).stdout.decode("latin-1").rstrip()
     )
@@ -126,7 +124,7 @@ def kill_system(args):
             subprocess.run(cmd)
 
     # Remove stopped bootloader containers
-    cmd = ["docker", "ps", "-a", "-q", "--filter", f"name={args.sysname}-bootloader"]
+    cmd = ["docker", "ps", "-a", "-q", "--filter", f"name={sysname}-bootloader"]
     bl_container_ids = (
         subprocess.run(cmd, capture_output=True).stdout.decode("latin-1").rstrip()
     )
@@ -134,6 +132,11 @@ def kill_system(args):
         for cid in bl_container_ids.split("\n"):
             cmd = ["docker", "rm", f"{cid}"]
             subprocess.run(cmd)
+
+
+def kill_system(args):
+    # Kill the bootloader
+    kill_bootloader(args.sysname)
 
     # Stop running host_tools containers
     cmd = ["docker", "ps", "-q", "--filter", f"ancestor={args.sysname}/host_tools"]
@@ -171,8 +174,8 @@ def build_system(args):
         parent = "alpine:3.12"
         parent_sc = "alpine:3.12"
     elif args.emulated:
-        parent = "ectf/ectf-qemu:tiva"
-        parent_sc = "ectf/ectf-qemu:tiva_sc"
+        parent = f"{args.base_image}:tiva"
+        parent_sc = f"{args.base_image}:tiva_sc"
     else:
         exit("build_system: Missing '--emulated' or '--physical'")
 
@@ -203,7 +206,7 @@ def build_system(args):
     if args.no_cache:
         cmd.append("--no-cache")
 
-    p2 = run_subprocess_capture(cmd)
+    p1 = run_subprocess_capture(cmd)
 
     # Build device
     cmd = [
@@ -223,7 +226,7 @@ def build_system(args):
         "--build-arg",
         f"EEPROM_SECRET={args.eeprom_secret}",
     ]
-    p3 = run_subprocess_capture(cmd)
+    p2 = run_subprocess_capture(cmd)
 
     # Build device copy with side-channel emulator
     cmd = [
@@ -243,29 +246,11 @@ def build_system(args):
         "--build-arg",
         f"EEPROM_SECRET={args.eeprom_secret}",
     ]
-    p4 = run_subprocess_capture(cmd)
+    p3 = run_subprocess_capture(cmd)
 
     # "docker volume rm <secrets volume>" was returning an error code when the volume didn't exist
     # not going to check the returncode of this
-    return [p2, p3, p4]
-
-    # Build device copy with side-channel emulator
-    cmd = [
-        "docker",
-        "build",
-        "--progress",
-        "plain",
-        f"{args.root_path}",
-        "-f",
-        f"{args.root_path}/dockerfiles/2_create_device.Dockerfile",
-        "-t",
-        f"{args.sysname}/bootloader:sc",
-        "--build-arg",
-        f"SYSNAME={args.sysname}",
-        "--build-arg",
-        f"PARENT={parent_sc}",
-    ]
-    subprocess.run(cmd)
+    return [p1, p2, p3]
 
 
 def load_emulated_device(args):
@@ -273,12 +258,30 @@ def load_emulated_device(args):
     flash_root = get_volume(args.sysname, "flash")
     eeprom_root = get_volume(args.sysname, "eeprom")
 
-    # Clear the Flash and EEPROM volumes so that new container has fresh state
-    cmd = ["docker", "volume", "rm", f"{flash_root}"]
+    log.info("Loading device")
+
+    cmd = [
+        "docker",
+        "run",
+        "-i",
+        "-v",
+        f"{flash_root}:/flash",
+        "-v",
+        f"{eeprom_root}:/eeprom",
+        "--name",
+        f"{args.sysname}-bootloader",
+        f"{args.sysname}/bootloader:base",
+        "/platform/emulator_load",
+        "--infile",
+        "/bootloader/phys_image.bin",
+    ]
     subprocess.run(cmd)
 
-    cmd = ["docker", "volume", "rm", f"{eeprom_root}"]
-    subprocess.run(cmd)
+    log.info("Emulated device loaded")
+
+    # Kill the exited containers
+    log.info("Removing emulator container")
+    kill_bootloader(args.sysname)
 
 
 def load_physical_device(args):
@@ -456,15 +459,6 @@ def launch_bootloader_interactive(args):
     launch_emulator(args, interactive=True)
 
 
-def launch_bootloader_interactive(args):
-    if args.sock_root is None:
-        log.error(
-            "launch_bootloader_interactive: Missing '--sock-root' for emulated flow"
-        )
-        exit(1)
-    launch_emulator(args, interactive=True)
-
-
 def launch_bootloader_gdb(args):
     if args.sock_root is None:
         exit("launch_bootloader_gdb: Missing '--sock-root' for emulated flow")
@@ -473,8 +467,7 @@ def launch_bootloader_gdb(args):
 
 def launch_bootloader_sc(args):
     if args.sock_root is None:
-        log.error("launch_bootloader_sc: Missing '--sock-root' for emulated flow")
-        exit(1)
+        exit("launch_bootloader_sc: Missing '--sock-root' for emulated flow")
     launch_emulator(args, do_sc=True)
 
 
@@ -724,6 +717,11 @@ def get_args():
         "--no-cache",
         action="store_true",
         help="Force a full build of the host_tools docker image",
+    )
+    parser_create.add_argument(
+        "--base-image",
+        default="ectf/ectf-qemu",
+        help="Docker image name to use for the device images",
     )
     create_group = parser_create.add_mutually_exclusive_group(required=True)
     create_group.add_argument(
