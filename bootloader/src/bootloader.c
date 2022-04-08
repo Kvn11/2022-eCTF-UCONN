@@ -79,7 +79,6 @@ void handle_boot(void)
     uint32_t chacha_key[8];
 
     uint8_t *rel_msg;
-    uint8_t u8_sha_out[32];
 
     EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
 
@@ -89,22 +88,9 @@ void handle_boot(void)
     // Find the metadata
     size = *((uint32_t *)FIRMWARE_SIZE_PTR);
 
-    memory_copy(signature, CONFIGURATION_SIGNATURE_PTR, SIG_SIZE);
+    memory_copy(signature, FIRMWARE_SIGNATURE_PTR, SIG_SIZE);
 
-    struct sha256_context sha;
-    sha256_init(&sha);
-
-    for(i = 0; i < size; i += 4)
-    {
-        int remaining = MIN(size - i, 4);
-        uint32_t block = LOAD_U32_BIG(((uint8_t*)(FIRMWARE_STORAGE_PTR + i)));
-
-        sha256_hash(&sha, &block, remaining);
-    }
-
-    sha256_done(&sha, u8_sha_out);
-
-    int result = verify_data_prehash(signature, SIG_SIZE, u8_sha_out, chacha_key);
+    int result = verify_data(signature, SIG_SIZE, FIRMWARE_STORAGE_PTR, size, chacha_key);
     uart_writeb(HOST_UART, (uint8_t)result);
     if(result != VERIFY_OK)
     {

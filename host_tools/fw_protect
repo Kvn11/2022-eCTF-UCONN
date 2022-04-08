@@ -39,6 +39,7 @@ def protect_firmware(
     firmware_size = len(firmware_data)
 
     log.info(f"[*] {firmware_data.hex()}")
+    log.info(f"[*] {firmware_size}")
     
     # Pack everything together so we can hash it all.
     payload = struct.pack("<II", version, firmware_size) + release_message.encode() + b"\x00"

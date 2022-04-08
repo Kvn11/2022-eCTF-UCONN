@@ -33,7 +33,7 @@ def update_firmware(socket_number: int, firmware_file: Path):
         version_num: int = data["version_num"]
         release_msg: str = data["release_msg"]
         firmware = bytes.fromhex(data["firmware"])
-        firmware_size = len(firmware)
+        firmware_size = int(data["firmware_size"])
         signature = bytes.fromhex(data["signature"])
         firmware_signature = bytes.fromhex(data["firmware_signature"])
 
@@ -67,6 +67,7 @@ def update_firmware(socket_number: int, firmware_file: Path):
             log.info("Bootloader firmware signature transfer success")
 
         log.info("Sending metadata")
+        log.info(f"[*]: {firmware_size}")
         versize = struct.pack("<II", firmware_size, version_num) + release_msg.encode() + b"\x00"
         sock.send(versize)
 
