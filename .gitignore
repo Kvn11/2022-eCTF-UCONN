@@ -14,6 +14,9 @@ socks
 run_commands.sh
 load_fw.sh
 
+firmware/
+configuration/
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,c,c++,git,pycharm
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,c,c++,git,pycharm
