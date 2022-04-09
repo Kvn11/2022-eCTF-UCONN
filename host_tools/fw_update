@@ -18,6 +18,7 @@ from pathlib import Path
 import socket
 import struct
 
+from base64 import b64decode
 from util import print_banner, send_packets, RESP_OK, FIRMWARE_ROOT, LOG_FORMAT, VERIFY_OK, VERIFY_FAIL
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -32,10 +33,11 @@ def update_firmware(socket_number: int, firmware_file: Path):
         data = json.load(fw)
         version_num: int = data["version_num"]
         release_msg: str = data["release_msg"]
-        firmware = bytes.fromhex(data["firmware"])
+        firmware = b64decode(data["firmware"].encode())
         firmware_size = int(data["firmware_size"])
-        signature = bytes.fromhex(data["signature"])
-        firmware_signature = bytes.fromhex(data["firmware_signature"])
+        signature = b64decode(data["signature"].encode())
+        firmware_hash = b64decode(data["firmware_hash"].encode())
+        firmware_signature = b64decode(data["firmware_signature"].encode())
 
     # Connect to the bootloader
     log.info("Connecting socket...")
@@ -67,8 +69,8 @@ def update_firmware(socket_number: int, firmware_file: Path):
             log.info("Bootloader firmware signature transfer success")
 
         log.info("Sending metadata")
-        log.info(f"[*]: {firmware_size}")
-        versize = struct.pack("<II", firmware_size, version_num) + release_msg.encode() + b"\x00"
+        log.info(f"[*]: {firmware_hash.hex()}")
+        versize = struct.pack("<II", firmware_size, version_num) + firmware_hash + release_msg.encode() + b"\x00"
         sock.send(versize)
 
 

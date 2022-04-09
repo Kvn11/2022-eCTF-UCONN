@@ -13,8 +13,10 @@
 
 import os
 import argparse
+import json
 import logging
 from pathlib import Path
+from base64 import b64encode
 from util import print_banner, CONFIGURATION_ROOT, LOG_FORMAT, generate_signature, encrypt_chacha, read_bytes_from_file
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -38,12 +40,20 @@ def protect_configuration(raw_cfg: Path, protected_cfg: Path):
     log.info(f"[*] Sign key: {sig_key.hex()}")
 
     # Create signature:
-    sig = generate_signature(cfg_file_data, data_key, sig_key)  
+    cfg_signature = generate_signature(cfg_file_data, data_key, sig_key)  
 
-    log.info("Packaging the configuration...")
+    log.info("Packaging the configuration...\n")
 
-    # Write to the output file:
-    protected_cfg.write_bytes(sig + cfg_file_data)
+     # Create configuration storage structure
+    data = {
+        "signature": b64encode(cfg_signature).decode(),
+        "data": b64encode(cfg_file_data).decode()
+    }
+
+    # Write to the meta-data file:
+    with protected_cfg.open("w", encoding="utf8") as fd:
+        json.dump(data, fd)
+        fd.close()
 
 
 def main():

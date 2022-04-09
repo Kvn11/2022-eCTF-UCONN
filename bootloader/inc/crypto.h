@@ -10,7 +10,8 @@ enum verify_t{
     VERIFY_INT_FAIL
 };
 
-int verify_data_prehash(uint8_t *signature, size_t sig_len, uint8_t* hash, uint32_t data_key[8]);
-int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_len, uint32_t data_key[8]);
+int verify_data_prehash(uint8_t *signature, size_t sig_len, uint8_t* hash, uint32_t* data_key);
+int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_len, uint32_t* data_key);
+int verify_hash(uint8_t *data, size_t data_len, uint8_t *hash);
 
 #endif

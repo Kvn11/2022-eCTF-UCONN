@@ -93,9 +93,9 @@ def generate_signature(data: bytes, data_key: bytes,  sig_key: bytes):
 
     # encrypt hash with sig_key, then append sig_key to hash
     signature = encrypt_chacha(out_hash, sig_key) + sig_key
-    log.info(f"[*] Data key: {data_key.hex()}")
-    log.info(f"[*] Sig key: {sig_key.hex()}")
-    log.info(f"[*] Hash: {out_hash.hex()}")
+    log.debug(f"[*] Data key: {data_key.hex()}")
+    log.debug(f"[*] Sig key: {sig_key.hex()}")
+    log.debug(f"[*] Hash: {out_hash.hex()}")
     encrypted_signature = encrypt_chacha(signature, data_key)
     return encrypted_signature
 
@@ -112,6 +112,10 @@ def verify_signature(data: bytes, signature: bytes, public_key: RsaKey):
     except(ValueError, TypeError):
         return False
 """
+
+def hash_sha(data: bytes):
+    hashed_object = SHA256.new(data)
+    return hashed_object.digest()
 
 def encrypt_chacha(data: bytes, key: bytes):
     nonce = os.urandom(12)

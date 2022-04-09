@@ -140,7 +140,8 @@ void sha256_init(struct sha256_context *ctx)
 {
 	// Initialize context state
 	if ( ctx != NULL ) {
-		ctx->bits[0]  = ctx->bits[1] = 0;
+		ctx->bits[0]  = 0;
+		ctx->bits[1]  = 0;
 		ctx->len      = 0;
 		ctx->hash[0] = 0x6a09e667;
 		ctx->hash[1] = 0xbb67ae85;

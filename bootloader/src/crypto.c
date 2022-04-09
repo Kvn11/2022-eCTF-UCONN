@@ -4,7 +4,7 @@
 #include "sha256.h"
 #include "chacha20.h"
 
-int verify_data_prehash(uint8_t *signature, size_t sig_len, uint8_t* hash, uint32_t data_key[8])
+int verify_data_prehash(uint8_t *signature, size_t sig_len, uint8_t* hash, uint32_t* data_key)
 {
 	stream_state chacha;
 	uint8_t u8_sig_decrypt[76];
@@ -41,7 +41,7 @@ int verify_data_prehash(uint8_t *signature, size_t sig_len, uint8_t* hash, uint3
 	return VERIFY_OK;
 }
 
-int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_len, uint32_t data_key[8])
+int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_len, uint32_t* data_key)
 {
 	uint8_t u8_sha_out[32];
 	struct sha256_context sha;
@@ -51,4 +51,25 @@ int verify_data(uint8_t *signature, size_t sig_len, uint8_t* data, size_t data_l
 	sha256_done(&sha, u8_sha_out);
 
 	return verify_data_prehash(signature, sig_len, u8_sha_out, data_key);
+}
+
+int verify_hash(uint8_t *data, size_t data_len, uint8_t *hash)
+{
+
+	uint8_t u8_sha_out[32];
+	struct sha256_context sha;
+
+	sha256_init(&sha);
+	sha256_hash(&sha, data, data_len);
+	sha256_done(&sha, u8_sha_out);
+
+	for(int i = 0; i < 32; i++)
+	{
+		if(hash[i] != u8_sha_out[i])
+		{
+			return VERIFY_FAIL;
+		}
+	}
+
+	return VERIFY_OK;
 }

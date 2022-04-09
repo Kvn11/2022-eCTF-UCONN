@@ -13,11 +13,13 @@
 
 import argparse
 import logging
+import json
 from pathlib import Path
 import socket
 import struct
 import os
 
+from base64 import b64decode
 from util import print_banner, send_packets, RESP_OK, CONFIGURATION_ROOT, LOG_FORMAT, VERIFY_FAIL, VERIFY_OK
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -29,8 +31,11 @@ def load_configuration(socket_number: int, config_file: Path):
 
     log.info("Reading configuration file...")
     # First 256 bytes are the signature
-    configuration = config_file.read_bytes()
-    size = len(configuration)
+    with config_file.open("rb") as cfg:
+        data = json.load(cfg)
+        signature = b64decode(data['signature'].encode())
+        configuration = b64decode(data['data'].encode())
+        size = len(configuration)
 
     # Connect to the bootloader
     log.info("Connecting socket...")
@@ -46,12 +51,18 @@ def load_configuration(socket_number: int, config_file: Path):
             pass
 
         # Send the size
-        log.info("Sending the size...")
-        payload = struct.pack(">I", size)
+        log.info("Packing metadata...")
+        payload = struct.pack(">I", size) + signature
         sock.send(payload)
+
+        received_ack = sock.recv(1)
+        if received_ack == RESP_OK:
+            log.info("Sent metadata successfully")
+        else:
+            log.error("Failed to send metadata")
         
         # Send packets
-        log.info("Sending packets...")
+        log.info("Sending configuration packets...")
         send_packets(sock, configuration)
 
         # Receive size as acknowledgment
@@ -59,11 +70,11 @@ def load_configuration(socket_number: int, config_file: Path):
         received_ack = sock.recv(1)
 
         if received_ack == VERIFY_OK:
-            log.info("Bootloader verified the configuration successfully")
+            log.info("Bootloader verified the configuration successfully\n")
         elif received_ack == VERIFY_FAIL:
-            log.info("Bootloader configuration signature incorrect")
+            log.error("Bootloader configuration signature incorrect\n")
         else:
-            log.info("Bootloader verification failed internally")
+            log.error("Bootloader verification failed internally\n")
 
 
 def main():

@@ -16,9 +16,10 @@ import argparse
 import json
 import logging
 import struct
+from base64 import b64encode
 from pathlib import Path
 
-from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT, generate_signature, encrypt_chacha, read_bytes_from_file
+from util import print_banner, FIRMWARE_ROOT, LOG_FORMAT, generate_signature, encrypt_chacha, read_bytes_from_file, hash_sha
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -29,46 +30,47 @@ def protect_firmware(
 ):
     print_banner("SAFFIRe Firmware Protect Tool")
 
+    # Read the key for encrypting data
+    data_key = read_bytes_from_file("/secrets/chacha_data.key")
+
     # Read in the raw firmware binary, encrypt
     log.info("Reading the firmware...")
-    firmware_data = firmware_file.read_bytes()
+    firmware_raw  = firmware_file.read_bytes()
+    firmware_hash = hash_sha(firmware_raw)
+    firmware_data = encrypt_chacha(firmware_raw, data_key)
 
     log.info("Packaging the firmware...")
 
     # Construct the metadata
     firmware_size = len(firmware_data)
-
-    log.info(f"[*] {firmware_data.hex()}")
-    log.info(f"[*] {firmware_size}")
     
     # Pack everything together so we can hash it all.
-    payload = struct.pack("<II", version, firmware_size) + release_message.encode() + b"\x00"
+    payload = struct.pack("<II", version, firmware_size) + firmware_hash + release_message.encode() + b"\x00"
     
     # Generate key for signing
     sig_key = os.urandom(32)
-
-    # Read the key for encrypting data
-    data_key = read_bytes_from_file("/secrets/chacha_data.key")
     
     # Generate signature over metadata.
     signature = generate_signature(payload, data_key, sig_key)
     firmware_signature = generate_signature(firmware_data, data_key, sig_key)
-
-    log.info(f"[*] Signature: {firmware_signature.hex()}")
 
     # Create firmware storage structure
     data = {
         "firmware_size": firmware_size,
         "version_num": version,
         "release_msg": release_message,
-        "firmware": firmware_data.hex(),
-        "signature": signature.hex(),
-        "firmware_signature": firmware_signature.hex()
+        "firmware": b64encode(firmware_data).decode(),
+        "signature": b64encode(signature).decode(),
+        "firmware_hash": b64encode(firmware_hash).decode(),
+        "firmware_signature": b64encode(firmware_signature).decode()
     }
+
+    log.info(f"[*] Hash: {firmware_hash.hex()}")
 
     # Write to the meta-data file:
     with protected_firmware.open("w", encoding="utf8") as fd:
         json.dump(data, fd)
+        fd.close()
     
     log.info("Firmware protected\n")
 

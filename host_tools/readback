@@ -17,7 +17,7 @@ import socket
 import os
 from pathlib import Path
 
-from util import print_banner, LOG_FORMAT, PRIVATE_KEY, generate_signature, import_RSA_key_from_file
+from util import print_banner, LOG_FORMAT, PRIVATE_KEY, generate_signature, read_bytes_from_file, decrypt_chacha
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 log = logging.getLogger(Path(__file__).name)
@@ -40,22 +40,14 @@ def readback(socket_number, region, num_bytes):
         log.info("Waiting for bootloader to enter readback mode...")
         while sock.recv(1) != b"R":
             pass
-        
-        # generate random token:
-        token = os.urandom(32)
-        private_key = import_RSA_key_from_file(PRIVATE_KEY)
-        signature = generate_signature(token, private_key)
 
-        # Send the signed token, then send the regular token
-        log.info("Sending token and signature...")
-        sock.send(signature)
-        sock.send(token)
-
+        decrypt_needed = False
         # Send the region identifier
         log.info("Sending the region identifier to read back...")
         if region == "firmware":
             # send firmware identifier
             sock.send(b"F")
+            decrypt_needed = True
             # get acknowledgement
             log.info("Waiting for bootloader to confirm the region...")
             while sock.recv(1) != b"F":
@@ -72,13 +64,16 @@ def readback(socket_number, region, num_bytes):
             sock.send(b"Q")
             return
 
+        bytes_remaining = num_bytes
+        if decrypt_needed and num_bytes > 0:
+            bytes_remaining = bytes_remaining + 12
+
         # Send the number of bytes to read
-        size = int.to_bytes(num_bytes, 4, "big")
+        size = int.to_bytes(bytes_remaining, 4, "big")
         sock.send(size)
 
         # Receive firmware data
-        log.info("Receiving firmware...")
-        bytes_remaining = num_bytes
+        log.info("Receiving data...")
         fw = b""
         while bytes_remaining > 0:
             num_bytes = 4096 if bytes_remaining > 4096 else bytes_remaining
@@ -87,7 +82,11 @@ def readback(socket_number, region, num_bytes):
             fw += data
             bytes_remaining -= num_received
 
-        log.info(f"Memory Readback Data: {fw.hex()}\n")
+        if decrypt_needed and num_bytes > 0:
+            data_key = read_bytes_from_file("/secrets/chacha_data.key")
+            data_read = decrypt_chacha(fw[12:], data_key, fw[:12])
+
+        log.info("Memory Readback Data:")
         print(f"{fw.hex()}\n")
 
 

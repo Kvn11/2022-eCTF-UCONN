@@ -390,16 +390,14 @@ def launch_emulator(args, interactive=False, do_gdb=False, do_sc=False):
         "--gdb",
         f"{gdb_arg}",
     ]
-    subprocess.run(cmd)
+    container_id = subprocess.run(cmd, capture_output=True).stdout.decode("latin-1").rstrip()
     # Wait for a few seconds
     time.sleep(2)
 
     if do_gdb:
         # Copy bootloader.elf from the bootloader container to the local filesystem
         cmd = ["docker", "create", f"{args.sysname}/bootloader:base"]
-        container_id = (
-            subprocess.run(cmd, capture_output=True).stdout.decode("latin-1").rstrip()
-        )
+        subprocess.run(cmd)
 
         cmd = [
             "docker",
@@ -411,7 +409,7 @@ def launch_emulator(args, interactive=False, do_gdb=False, do_sc=False):
 
         log.info(f"Copied bootloader ELF: {args.sysname}-bootloader.elf.deleteme")
 
-        cmd = ["docker", "rm", "-v", f"{container_id}"]
+        cmd = ["docker", "rm", "-v", container_id]
         subprocess.run(cmd)
 
         cmd = [

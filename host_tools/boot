@@ -53,8 +53,12 @@ def boot(socket_number: int, release_message_file: Path):
         # Wait for bootloader to move firmware to ram
         log.info("Waiting for bootloader to copy firmware to RAM...")
         msg = sock.recv(1)
-        if msg != b"M":
-            exit(f"Boot failed with code {repr(msg)}")
+        if msg != VERIFY_OK:
+            log.error(f"Boot failed with code {repr(msg)}")
+            exit()
+        else:
+            log.info("Bootloader copied and verified firmware successfully")
+        
 
         # Receive release message
         log.info("Receiving release message...")
