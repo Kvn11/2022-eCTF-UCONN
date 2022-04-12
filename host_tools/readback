@@ -87,7 +87,7 @@ def readback(socket_number, region, num_bytes):
             data_key = read_bytes_from_file("/secrets/chacha_data.key")
             data_read = decrypt_chacha(fw[12:], data_key, fw[:12])
 
-        log.info(f"Memory Readback Data: {data_read.hex()}")
+        log.info(f"Memory Readback Data: {data_read.hex()}\n")
         print(f"{data_read.hex()}\n")
 
 

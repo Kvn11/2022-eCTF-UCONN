@@ -140,8 +140,6 @@ void handle_readback(void)
     uint8_t region;
     uint8_t *address;
     uint32_t size = 0;
-    uint8_t signature[SIG_SIZE];
-    uint8_t token[32];
 
     // Acknowledge the host
     uart_writeb(HOST_UART, 'R');
