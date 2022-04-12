@@ -76,25 +76,19 @@ def readback(socket_number, region, num_bytes):
         log.info("Receiving data...")
         fw = b""
         while bytes_remaining > 0:
-            num_bytes = 4096 if bytes_remaining > 4096 else bytes_remaining
+            num_bytes = 4108 if bytes_remaining > 4108 else bytes_remaining
             data = sock.recv(num_bytes)
             num_received = len(data)
             fw += data
             bytes_remaining -= num_received
 
         data_read = fw
-        data_formatted = b""
         if decrypt_needed and num_bytes > 0:
             data_key = read_bytes_from_file("/secrets/chacha_data.key")
             data_read = decrypt_chacha(fw[12:], data_key, fw[:12])
 
-        for i in range(0, len(data_read),2):
-            data_formatted += bytes([data_read[i+1]])
-            data_formatted += bytes([data_read[i]])
-
-
-        log.info(f"Memory Readback Data: {data_formatted.hex()}\n")
-        print(f"{data_formatted.hex()}\n")
+        log.info(f"Memory Readback Data: {data_read.hex()}\n")
+        print(f"{data_read.hex()}\n")
 
 
 def main():
