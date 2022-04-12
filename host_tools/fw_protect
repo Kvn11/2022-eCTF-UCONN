@@ -65,8 +65,6 @@ def protect_firmware(
         "firmware_signature": b64encode(firmware_signature).decode()
     }
 
-    log.info(f"[*] Hash: {firmware_hash.hex()}")
-
     # Write to the meta-data file:
     with protected_firmware.open("w", encoding="utf8") as fd:
         json.dump(data, fd)

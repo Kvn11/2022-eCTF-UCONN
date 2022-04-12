@@ -35,9 +35,6 @@ def protect_configuration(raw_cfg: Path, protected_cfg: Path):
 
     # Read in the data key:
     data_key = read_bytes_from_file("/secrets/chacha_data.key")
-    
-    log.info(f"[*] Data key: {data_key.hex()}")
-    log.info(f"[*] Sign key: {sig_key.hex()}")
 
     # Create signature:
     cfg_signature = generate_signature(cfg_file_data, data_key, sig_key)  
