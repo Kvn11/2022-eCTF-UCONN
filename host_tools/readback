@@ -32,6 +32,8 @@ def readback(socket_number, region, num_bytes):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect(("saffire-net", socket_number))
 
+        log.info(f"Reading {num_bytes} bytes...")
+
         # Send readback command
         log.info("Sending readback command...")
         sock.send(b"R")
@@ -76,7 +78,7 @@ def readback(socket_number, region, num_bytes):
         log.info("Receiving data...")
         fw = b""
         while bytes_remaining > 0:
-            num_bytes = 4108 if bytes_remaining > 4108 else bytes_remaining
+            num_bytes = bytes_remaining
             data = sock.recv(num_bytes)
             num_received = len(data)
             fw += data
