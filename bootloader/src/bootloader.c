@@ -47,7 +47,7 @@
  * Configuration:
  *      Signature:  0x0002FC00 : 0x0002FC58 (88B)
  *      Size:       0x0002FC58 : 0x0002FC5C (4B)
- *      Cfg:        0x00030000 : 0x00040000 (64KB)
+ *      Cfg:        0x0002FC5C : 0x0003FC5C (64KB)
  */
 
 #define SIG_SIZE 88
@@ -67,7 +67,7 @@
 #define CONFIGURATION_SIGNATURE_PTR     ((uint32_t)(CONFIGURATION_METADATA_PTR  + 0))
 #define CONFIGURATION_SIZE_PTR          ((uint32_t)(CONFIGURATION_SIGNATURE_PTR + SIG_SIZE))
 
-#define CONFIGURATION_STORAGE_PTR       ((uint32_t)(CONFIGURATION_METADATA_PTR  + FLASH_PAGE_SIZE))
+#define CONFIGURATION_STORAGE_PTR       ((uint32_t)(CONFIGURATION_SIZE_PTR      + 4))
 
 #define EEPROM_CHACHA_SIZE  (8)
 #define EEPROM_CHACHA_PTR   (0)
