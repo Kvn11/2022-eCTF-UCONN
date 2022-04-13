@@ -92,12 +92,13 @@ def generate_signature(data: bytes, data_key: bytes,  sig_key: bytes):
     out_hash = hashed_object.digest()
 
     # encrypt hash with sig_key, then append sig_key to hash
-    signature = encrypt_chacha(out_hash, sig_key) + sig_key
-    log.debug(f"[*] Data key: {data_key.hex()}")
-    log.debug(f"[*] Sig key: {sig_key.hex()}")
-    log.debug(f"[*] Hash: {out_hash.hex()}")
-    encrypted_signature = encrypt_chacha(signature, data_key)
-    return encrypted_signature
+    signature_nonce, signature_data = encrypt_chacha(out_hash, sig_key)
+    signature = signature_nonce + signature_data + sig_key
+    log.info(f"[*] Data key: {data_key.hex()}")
+    log.info(f"[*] Sig key: {sig_key.hex()}")
+    log.info(f"[*] Hash: {out_hash.hex()}")
+    nonce, encrypted_signature = encrypt_chacha(signature, data_key)
+    return nonce + encrypted_signature
 
 """
 
@@ -122,7 +123,7 @@ def encrypt_chacha(data: bytes, key: bytes):
     cipher = ChaCha20.new(key=key,nonce=nonce)
     ciphertext = cipher.encrypt(data)
     
-    return nonce + ciphertext
+    return (nonce, ciphertext)
 
 def decrypt_chacha(ciphertext: bytes, key: bytes, nonce: bytes):
     cipher = ChaCha20.new(key=key, nonce=nonce)

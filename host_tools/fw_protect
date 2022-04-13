@@ -37,7 +37,7 @@ def protect_firmware(
     log.info("Reading the firmware...")
     firmware_raw  = firmware_file.read_bytes()
     firmware_hash = hash_sha(firmware_raw)
-    firmware_data = encrypt_chacha(firmware_raw, data_key)
+    firmware_nonce, firmware_data = encrypt_chacha(firmware_raw, data_key)
 
     log.info("Packaging the firmware...")
 
@@ -45,7 +45,7 @@ def protect_firmware(
     firmware_size = len(firmware_data)
     
     # Pack everything together so we can hash it all.
-    payload = struct.pack("<II", version, firmware_size) + firmware_hash + release_message.encode() + b"\x00"
+    payload = struct.pack("<II", version, firmware_size) + firmware_nonce + release_message.encode() + b"\x00"
     
     # Generate key for signing
     sig_key = os.urandom(32)
@@ -61,7 +61,7 @@ def protect_firmware(
         "release_msg": release_message,
         "firmware": b64encode(firmware_data).decode(),
         "signature": b64encode(signature).decode(),
-        "firmware_hash": b64encode(firmware_hash).decode(),
+        "firmware_nonce": b64encode(firmware_nonce).decode(),
         "firmware_signature": b64encode(firmware_signature).decode()
     }
 

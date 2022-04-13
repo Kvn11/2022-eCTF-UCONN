@@ -36,7 +36,7 @@ def update_firmware(socket_number: int, firmware_file: Path):
         firmware = b64decode(data["firmware"].encode())
         firmware_size = int(data["firmware_size"])
         signature = b64decode(data["signature"].encode())
-        firmware_hash = b64decode(data["firmware_hash"].encode())
+        firmware_nonce = b64decode(data["firmware_nonce"].encode())
         firmware_signature = b64decode(data["firmware_signature"].encode())
 
     # Connect to the bootloader
@@ -54,6 +54,7 @@ def update_firmware(socket_number: int, firmware_file: Path):
             pass
 
         # Send the metadata signature
+        log.info(f"{signature.hex()}")
         sock.send(signature)
         signature_recv = sock.recv(1)
         if signature_recv != b'\x00':
@@ -69,9 +70,8 @@ def update_firmware(socket_number: int, firmware_file: Path):
             log.info("Bootloader firmware signature transfer success")
 
         log.info("Sending metadata")
-        versize = struct.pack("<II", firmware_size, version_num) + firmware_hash + release_msg.encode() + b"\x00"
+        versize = struct.pack("<II", firmware_size, version_num) + firmware_nonce + release_msg.encode() + b"\x00"
         sock.send(versize)
-
 
         verify_result = sock.recv(1)
         if verify_result == VERIFY_OK:

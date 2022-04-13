@@ -41,13 +41,13 @@
  *      Size:       0x0002B400 : 0x0002B404 (4B)
  *      Version:    0x0002B404 : 0x0002B408 (4B)
  *      Signature:  0x0002B408 : 0x0002B460 (88B)
- *      Hash:       0x0002B460 : 0x0002B480 (32B)
- *      Msg:        0x0002B800 : 0x0002BC00 (2KB = 1KB + 1B + pad)
+ *      Nonce       0x0002B460 : 0x0002B46C (12B)
+ *      Msg:        0x0002B46C : 0x0002BC00 (1KB)
  *      Fw:         0x0002BC00 : 0x0002FC00 (16KB)
  * Configuration:
  *      Signature:  0x0002FC00 : 0x0002FC58 (88B)
  *      Size:       0x0002FC58 : 0x0002FC5C (4B)
- *      Cfg:        0x00030000 : 0x0003FFFF (64KB)
+ *      Cfg:        0x00030000 : 0x00040000 (64KB)
  */
 
 #define SIG_SIZE 88
@@ -56,14 +56,14 @@
 #define FIRMWARE_SIZE_PTR               ((uint32_t)(FIRMWARE_METADATA_PTR       + 0))
 #define FIRMWARE_VERSION_PTR            ((uint32_t)(FIRMWARE_SIZE_PTR           + 4))
 #define FIRMWARE_SIGNATURE_PTR          ((uint32_t)(FIRMWARE_VERSION_PTR        + 4))
-#define FIRMWARE_HASH_PTR               ((uint32_t)(FIRMWARE_SIGNATURE_PTR      + SIG_SIZE))
-#define FIRMWARE_RELEASE_MSG_PTR        ((uint32_t)(FIRMWARE_METADATA_PTR       + FLASH_PAGE_SIZE))
-#define FIRMWARE_RELEASE_MSG_PTR2       ((uint32_t)(FIRMWARE_METADATA_PTR       + (FLASH_PAGE_SIZE*2)))
+#define FIRMWARE_NONCE_PTR              ((uint32_t)(FIRMWARE_SIGNATURE_PTR      + SIG_SIZE))
+#define FIRMWARE_RELEASE_MSG_PTR        ((uint32_t)(FIRMWARE_NONCE_PTR          + 12))
+#define FIRMWARE_RELEASE_MSG_PTR2       ((uint32_t)(0x0002B800                  + 0))
 
-#define FIRMWARE_STORAGE_PTR            ((uint32_t)(FIRMWARE_METADATA_PTR       + (FLASH_PAGE_SIZE*4)))
+#define FIRMWARE_STORAGE_PTR            ((uint32_t)(0x0002BC00                  + 0))
 #define FIRMWARE_BOOT_PTR               ((uint32_t)(0x20004000                  + 0))
 
-#define CONFIGURATION_METADATA_PTR      ((uint32_t)(FIRMWARE_STORAGE_PTR        + (FLASH_PAGE_SIZE*16)))
+#define CONFIGURATION_METADATA_PTR      ((uint32_t)(0x0002FC00                  + 0))
 #define CONFIGURATION_SIGNATURE_PTR     ((uint32_t)(CONFIGURATION_METADATA_PTR  + 0))
 #define CONFIGURATION_SIZE_PTR          ((uint32_t)(CONFIGURATION_SIGNATURE_PTR + SIG_SIZE))
 
@@ -84,8 +84,8 @@ void handle_boot(void)
     uint32_t size;
     uint32_t i = 0;
     uint32_t chacha_key[8];
-
     uint8_t *rel_msg;
+    uint8_t u8_sha_out[32];
 
     HWREG(EEPROM_EEOFFSET) = 0;
     EEPROMRead(chacha_key, EEPROM_CHACHA_PTR, EEPROM_CHACHA_SIZE * 4);
@@ -108,10 +108,15 @@ void handle_boot(void)
     uint8_t* fw = (uint8_t*)FIRMWARE_STORAGE_PTR;
 
     stream_state chacha;
-    chacha20_init(&chacha, chacha_key, 32, fw, 12);
-    chacha20_encrypt(&chacha, &fw[12], FIRMWARE_BOOT_PTR, size - 12);
+    chacha20_init(&chacha, chacha_key, 32, FIRMWARE_NONCE_PTR, 12);
+    chacha20_encrypt(&chacha, fw, FIRMWARE_BOOT_PTR, size);
 
-    result = verify_hash(FIRMWARE_BOOT_PTR, size - 12, FIRMWARE_HASH_PTR);
+    struct sha256_context sha;
+    sha256_init(&sha);
+    sha256_hash(&sha, FIRMWARE_BOOT_PTR, size - 12);
+    sha256_done(&sha, u8_sha_out);
+
+    result = verify_hash(FIRMWARE_BOOT_PTR, size - 12, u8_sha_out);
     uart_writeb(HOST_UART, (uint8_t)result);
     if(result != VERIFY_OK)
     {
@@ -167,6 +172,12 @@ void handle_readback(void)
     size |= ((uint32_t)uart_readb(HOST_UART)) << 8;
     size |= (uint32_t)uart_readb(HOST_UART);
 
+    if (region == 'F')
+    {
+        // Send the nonce
+        uart_write(HOST_UART, FIRMWARE_NONCE_PTR, 12);
+    }
+    
     // Read out the memory
     uart_write(HOST_UART, address, size);
 }
@@ -216,12 +227,12 @@ void handle_update(void)
     uint32_t version = 0;
     uint32_t size = 0;
     uint32_t rel_msg_size = 0;
+    uint32_t chacha_key[8];
     uint32_t signature[SIG_SIZE/4];
     uint32_t fw_signature[SIG_SIZE/4];
-    uint32_t chacha_key[8];
-    uint8_t rel_msg[1025]; // 1024 + terminator
+    uint8_t rel_msg[1025];
     uint8_t u8_sha_out[32];
-    uint8_t fw_raw_hash[32];
+    uint8_t nonce[12];
 
     struct sha256_context sha;
     sha256_init(&sha);
@@ -240,13 +251,13 @@ void handle_update(void)
 
     uart_read(HOST_UART, (uint8_t*)&size, 4);
     uart_read(HOST_UART, (uint8_t*)&version, 4);
-    uart_read(HOST_UART, fw_raw_hash, 32);
+    uart_read(HOST_UART, (uint8_t*)nonce, 12);
     
     rel_msg_size = uart_readline(HOST_UART, rel_msg) + 1;
 
     sha256_hash(&sha, &version, 4);
     sha256_hash(&sha, &size, 4);
-    sha256_hash(&sha, fw_raw_hash, 32);
+    sha256_hash(&sha, nonce, 12);
     sha256_hash(&sha, rel_msg, rel_msg_size);
     sha256_done(&sha, u8_sha_out);
 
@@ -290,8 +301,7 @@ void handle_update(void)
     // Save signature
     flash_write(fw_signature, FIRMWARE_SIGNATURE_PTR, SIG_SIZE >> 2);
 
-    // Save raw hash
-    flash_write(fw_raw_hash, FIRMWARE_HASH_PTR, 8);
+    flash_write(nonce, FIRMWARE_NONCE_PTR, 3);
 
     // Write release message
     uint8_t *rel_msg_read_ptr = rel_msg;
@@ -299,14 +309,14 @@ void handle_update(void)
     uint32_t rem_bytes = rel_msg_size;
 
     // If release message goes outside of the first page, write the first full page
-    if (rel_msg_size > (FLASH_PAGE_SIZE-96)) {
+    if (rel_msg_size > 916) {
 
         // Write first page
-        flash_write((uint32_t *)rel_msg, FIRMWARE_RELEASE_MSG_PTR, (FLASH_PAGE_SIZE-96) >> 2); // This is always a multiple of 4
+        flash_write((uint32_t *)rel_msg, FIRMWARE_RELEASE_MSG_PTR, 229); // This is always a multiple of 4
 
         // Set up second page
-        rem_bytes = rel_msg_size - (FLASH_PAGE_SIZE-96);
-        rel_msg_read_ptr = rel_msg + (FLASH_PAGE_SIZE-96);
+        rem_bytes = rel_msg_size - (FLASH_PAGE_SIZE-916);
+        rel_msg_read_ptr = rel_msg + (FLASH_PAGE_SIZE-916);
         rel_msg_write_ptr = FIRMWARE_RELEASE_MSG_PTR2;
         flash_erase_page(rel_msg_write_ptr);
     }
