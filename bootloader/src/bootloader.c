@@ -253,7 +253,8 @@ void handle_update(void)
     uart_read(HOST_UART, (uint8_t*)&version, 4);
     uart_read(HOST_UART, (uint8_t*)nonce, 12);
     
-    rel_msg_size = uart_readline(HOST_UART, rel_msg) + 1;
+    // Read 1024 because of null terminator
+    rel_msg_size = uart_readline(HOST_UART, rel_msg, 1025) + 1;
 
     sha256_hash(&sha, &version, 4);
     sha256_hash(&sha, &size, 4);

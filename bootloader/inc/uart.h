@@ -65,9 +65,10 @@ uint32_t uart_read(uint32_t uart, uint8_t *buf, uint32_t n);
  * 
  * @param uart is the base address of the UART port to read from.
  * @param buf is a pointer to the destination for the received data.
+ * @param buf_size size of buf to prevent overflow
  * @return the number of bytes read from the UART interface.
  */
-uint32_t uart_readline(uint32_t uart, uint8_t *buf);
+uint32_t uart_readline(uint32_t uart, uint8_t *buf, uint32_t buf_size);
 
 
 /**
