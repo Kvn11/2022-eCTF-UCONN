@@ -54,7 +54,6 @@ def update_firmware(socket_number: int, firmware_file: Path):
             pass
 
         # Send the metadata signature
-        log.info(f"{signature.hex()}")
         sock.send(signature)
         signature_recv = sock.recv(1)
         if signature_recv != b'\x00':

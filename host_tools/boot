@@ -69,7 +69,7 @@ def boot(socket_number: int, release_message_file: Path):
         log.info(f"Release Message: {release_msg}")
 
         # Write release message to file
-        log.info("Writing release message to output file...")
+        log.info(f"Writing release message to {release_message_file}...")
         release_message_file.write_text(release_msg.decode("latin-1"))
 
         log.info("Firmware booted\n")

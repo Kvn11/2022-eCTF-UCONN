@@ -94,9 +94,6 @@ def generate_signature(data: bytes, data_key: bytes,  sig_key: bytes):
     # encrypt hash with sig_key, then append sig_key to hash
     signature_nonce, signature_data = encrypt_chacha(out_hash, sig_key)
     signature = signature_nonce + signature_data + sig_key
-    log.info(f"[*] Data key: {data_key.hex()}")
-    log.info(f"[*] Sig key: {sig_key.hex()}")
-    log.info(f"[*] Hash: {out_hash.hex()}")
     nonce, encrypted_signature = encrypt_chacha(signature, data_key)
     return nonce + encrypted_signature
 

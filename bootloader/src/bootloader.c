@@ -309,14 +309,14 @@ void handle_update(void)
     uint32_t rem_bytes = rel_msg_size;
 
     // If release message goes outside of the first page, write the first full page
-    if (rel_msg_size > 916) {
+    if (rel_msg_size > (FLASH_PAGE_SIZE-108)) {
 
         // Write first page
-        flash_write((uint32_t *)rel_msg, FIRMWARE_RELEASE_MSG_PTR, 229); // This is always a multiple of 4
+        flash_write((uint32_t *)rel_msg, FIRMWARE_RELEASE_MSG_PTR, (FLASH_PAGE_SIZE-108) >> 2); // This is always a multiple of 4
 
         // Set up second page
-        rem_bytes = rel_msg_size - (FLASH_PAGE_SIZE-916);
-        rel_msg_read_ptr = rel_msg + (FLASH_PAGE_SIZE-916);
+        rem_bytes = rel_msg_size - (FLASH_PAGE_SIZE-108);
+        rel_msg_read_ptr = rel_msg + (FLASH_PAGE_SIZE-108);
         rel_msg_write_ptr = FIRMWARE_RELEASE_MSG_PTR2;
         flash_erase_page(rel_msg_write_ptr);
     }
